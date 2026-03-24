@@ -1,0 +1,44 @@
+# Dependency directories
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build directories
+build/
+dist/
+public/build/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+
+# Misc Files in Backend
+db_out.txt
+db_output.json
+db_output.txt
+debug-subjects.json
+debug.json
+debug_output.txt
+error.txt
+multi.txt
+sample_curr.txt
+api_response.json
+node_error.log

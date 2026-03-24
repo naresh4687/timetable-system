@@ -1,0 +1,119 @@
+import axios from 'axios';
+
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+
+// Create axios instance
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Attach JWT token to every request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Handle 401 - auto logout
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+export const authAPI = {
+  login: (data) => api.post('/auth/login', data),
+  register: (data) => api.post('/auth/register', data),
+  getMe: () => api.get('/auth/me'),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password) => api.post(`/auth/reset-password/${token}`, { password }),
+};
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+export const userAPI = {
+  create: (data) => api.post('/users', data),
+  getAll: (params) => api.get('/users', { params }),
+  getById: (id) => api.get(`/users/${id}`),
+  update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
+  getStaff: () => api.get('/users/staff'),
+};
+
+// ─── Timetables ──────────────────────────────────────────────────────────────
+export const timetableAPI = {
+  create: (data) => api.post('/timetables', data),
+  getAll: (params) => api.get('/timetables', { params }),
+  getById: (id) => api.get(`/timetables/${id}`),
+  update: (id, data) => api.put(`/timetables/${id}`, data),
+  updateStatus: (id, data) => api.patch(`/timetables/${id}/status`, data),
+  delete: (id) => api.delete(`/timetables/${id}`),
+  downloadPDF: async (id, filename) => {
+    const response = await api.get(`/timetables/${id}/pdf`, { responseType: 'blob' });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename || 'timetable.pdf');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
+};
+
+// ─── Subject Expectations ────────────────────────────────────────────────────
+export const expectationAPI = {
+  submit: (data) => api.post('/expectations', data),
+  getMyExpectation: () => api.get('/expectations/me'),
+  getAll: () => api.get('/expectations'),
+  getTaken: (year) =>
+    api.get(`/expectations/taken`, {
+      params: { academicYear: year ? year.replace(/–/g, '-') : year },
+    }),
+  delete: (id) => api.delete(`/expectations/${id}`),
+};
+
+// ─── Curriculum ──────────────────────────────────────────────────────────────
+export const curriculumAPI = {
+  getAll: () => api.get('/curriculum'),
+  getBySemester: (sem) => api.get(`/curriculum/${sem}`),
+  save: (data) => api.post('/curriculum', data),
+  delete: (sem) => api.delete(`/curriculum/${sem}`),
+  generate: (data) => api.post('/curriculum/generate', data),
+  parseFile: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/curriculum/parse', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+};
+
+// ─── Subject Selection ────────────────────────────────────────────────────────
+export const subjectAPI = {
+  getAcademicYears: () => api.get('/subjects/academic-years'),
+  getSemesters: (year, type) => api.get(`/subjects/semesters?year=${year.replace(/–/g, '-')}&type=${type}`),
+  getSubjects: (year, type, semester) =>
+    api.get(`/subjects`, {
+      params: {
+        year: year ? year.replace(/–/g, '-') : year,
+        type,
+        semester: Number(semester),
+      },
+    }),
+};
+
+// ─── Master Subjects ─────────────────────────────────────────────────────────
+export const masterSubjectAPI = {
+  getAll: () => api.get('/subjects/master'),
+  create: (data) => api.post('/subjects/master', data),
+};
+
+export default api;
