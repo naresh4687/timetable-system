@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { timetableAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { LuArrowLeft, LuDownload, LuPencil, LuCircleCheck, LuCircleX, LuBuilding, LuBookOpen, LuCalendarDays } from 'react-icons/lu';
 
 export default function TimetableViewPage() {
   const { id } = useParams();
@@ -21,10 +22,7 @@ export default function TimetableViewPage() {
   const handleDownload = async () => {
     try {
       toast.loading('Generating PDF...');
-      await timetableAPI.downloadPDF(
-        id,
-        `timetable-${timetable.department}-sem${timetable.semester}.pdf`
-      );
+      await timetableAPI.downloadPDF(id, `timetable-${timetable.department}-sem${timetable.semester}.pdf`);
       toast.dismiss();
       toast.success('PDF downloaded!');
     } catch {
@@ -37,14 +35,13 @@ export default function TimetableViewPage() {
     try {
       if (newStatus === 'rejected') {
         const reason = window.prompt('Enter reason for rejection:');
-        if (reason === null) return; 
+        if (reason === null) return;
         await timetableAPI.updateStatus(id, { status: newStatus, rejectionReason: reason });
       } else {
         if (!window.confirm('Are you sure you want to approve this timetable?')) return;
         await timetableAPI.updateStatus(id, { status: newStatus });
       }
       toast.success(`Timetable ${newStatus}!`);
-      // Reload timetable
       const { data } = await timetableAPI.getById(id);
       setTimetable(data.timetable);
     } catch (err) {
@@ -53,51 +50,47 @@ export default function TimetableViewPage() {
   };
 
   if (loading) return <div className="loading-wrap"><div className="spinner" /></div>;
-  if (!timetable) return <div className="empty-state"><span className="icon">❌</span><p>Timetable not found.</p></div>;
+  if (!timetable) return <div className="empty-state"><span className="icon"><LuCalendarDays size={40} /></span><p>Timetable not found.</p></div>;
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => navigate('/timetables')}
-            style={{ marginBottom: '0.5rem' }}
-          >
-            ← Back
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/timetables')} style={{ marginBottom: '0.5rem' }}>
+            <LuArrowLeft size={14} /> Back
           </button>
           <h1 className="page-title">{timetable.title}</h1>
-          <div className="flex-gap text-sm text-muted" style={{ marginTop: '0.25rem' }}>
-            <span>🏛️ {timetable.department}</span>
+          <div className="flex-gap text-sm text-muted" style={{ marginTop: '0.3rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBuilding size={13} /> {timetable.department}</span>
             <span>·</span>
-            <span>📚 Semester {timetable.semester}</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBookOpen size={13} /> Semester {timetable.semester}</span>
             <span>·</span>
-            <span>🔤 Section {timetable.section}</span>
+            <span>Section {timetable.section}</span>
             <span>·</span>
-            <span>📆 {timetable.academicYear}</span>
+            <span>{timetable.academicYear}</span>
             <span className={`badge badge-${timetable.status || 'draft'}`} style={{ marginLeft: '0.5rem' }}>
               {(timetable.status || 'draft').toUpperCase()}
             </span>
           </div>
         </div>
-        <div className="flex-gap">
+        <div className="action-buttons">
           <button className="btn btn-success" onClick={handleDownload}>
-            📥 Download PDF
+            <LuDownload size={16} /> Download PDF
           </button>
-          
+
           {user.role === 'admin' && (
             <button className="btn btn-primary" onClick={() => navigate(`/timetables/${id}/edit`)}>
-              ✏️ Edit
+              <LuPencil size={16} /> Edit
             </button>
           )}
 
           {user.role === 'manager' && (timetable.status === 'draft' || !timetable.status) && (
             <>
               <button className="btn btn-success" onClick={() => handleStatusUpdate('approved')}>
-                ✅ Approve
+                <LuCircleCheck size={16} /> Approve
               </button>
               <button className="btn btn-danger" onClick={() => handleStatusUpdate('rejected')}>
-                ❌ Reject
+                <LuCircleX size={16} /> Reject
               </button>
             </>
           )}
@@ -112,7 +105,7 @@ export default function TimetableViewPage() {
 
       {timetable.schedule.length === 0 ? (
         <div className="empty-state">
-          <span className="icon">📅</span>
+          <span className="icon"><LuCalendarDays size={40} /></span>
           <p>No schedule data. Edit this timetable to add slots.</p>
         </div>
       ) : (
@@ -147,12 +140,8 @@ export default function TimetableViewPage() {
                         ) : (
                           <div className="tt-slot">
                             <div className="tt-slot-subject">{slot.subject}</div>
-                            {slot.staffName && (
-                              <div className="tt-slot-staff">👨‍🏫 {slot.staffName}</div>
-                            )}
-                            {slot.classroom && (
-                              <div className="tt-slot-room">🚪 {slot.classroom}</div>
-                            )}
+                            {slot.staffName && <div className="tt-slot-staff">{slot.staffName}</div>}
+                            {slot.classroom && <div className="tt-slot-room">{slot.classroom}</div>}
                             <span className={`badge badge-${slot.type}`} style={{ marginTop: '0.25rem', fontSize: '0.6rem' }}>
                               {slot.type}
                             </span>

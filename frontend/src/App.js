@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Sidebar from './components/Sidebar';
+import TopNavbar from './components/TopNavbar';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -16,13 +17,21 @@ import SubjectSelectionPage from './pages/SubjectSelectionPage';
 import ExpectationsPage from './pages/ExpectationsPage';
 import StaffPage from './pages/StaffPage';
 import CurriculumPage from './pages/CurriculumPage';
+import AssignmentsPage from './pages/AssignmentsPage';
+import DepartmentsPage from './pages/DepartmentsPage';
+import ProfilePage from './pages/ProfilePage';
 
-// Layout wrapper with sidebar
+// Layout wrapper with sidebar + top navbar
 function AppLayout({ children }) {
   return (
     <div className="app-layout">
       <Sidebar />
-      <main className="main-content">{children}</main>
+      <TopNavbar />
+      <main className="main-content">
+        <div className="main-content-inner">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }
@@ -56,6 +65,15 @@ function AppRoutes() {
       />
 
       <Route
+        path="/departments"
+        element={
+          <ProtectedRoute roles={['admin']}>
+            <AppLayout><DepartmentsPage /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/timetables"
         element={
           <ProtectedRoute>
@@ -67,7 +85,7 @@ function AppRoutes() {
       <Route
         path="/timetables/new"
         element={
-          <ProtectedRoute roles={['admin']}>
+          <ProtectedRoute roles={['admin', 'manager']}>
             <AppLayout><TimetableEditorPage /></AppLayout>
           </ProtectedRoute>
         }
@@ -85,7 +103,7 @@ function AppRoutes() {
       <Route
         path="/timetables/:id/edit"
         element={
-          <ProtectedRoute roles={['admin']}>
+          <ProtectedRoute roles={['admin', 'manager']}>
             <AppLayout><TimetableEditorPage /></AppLayout>
           </ProtectedRoute>
         }
@@ -127,6 +145,26 @@ function AppRoutes() {
         }
       />
 
+      {/* Subject Assignments Routes */}
+      <Route
+        path="/assignments"
+        element={
+          <ProtectedRoute roles={['admin', 'manager']}>
+            <AppLayout><AssignmentsPage /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Profile – available to all authenticated users */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <AppLayout><ProfilePage /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* Default redirect */}
       <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -143,10 +181,18 @@ export default function App() {
           position="top-right"
           toastOptions={{
             style: {
-              background: '#111827',
-              color: '#e2e8f0',
-              border: '1px solid #1e2d45',
+              background: '#ffffff',
+              color: '#1e293b',
+              border: '1px solid #e2e8f0',
               fontSize: '0.85rem',
+              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.08)',
+              borderRadius: '10px',
+            },
+            success: {
+              iconTheme: { primary: '#16a34a', secondary: '#fff' },
+            },
+            error: {
+              iconTheme: { primary: '#dc2626', secondary: '#fff' },
             },
           }}
         />

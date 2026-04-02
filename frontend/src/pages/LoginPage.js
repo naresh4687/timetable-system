@@ -1,30 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-function EyeIcon({ open }) {
-  return open ? (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  );
-}
-
-const inputWrapStyle = { position: 'relative', display: 'flex', alignItems: 'center' };
-const eyeBtnStyle = {
-  position: 'absolute', right: '0.75rem', background: 'none', border: 'none',
-  cursor: 'pointer', color: 'var(--text-muted, #9ca3af)', display: 'flex', alignItems: 'center',
-  padding: '0', lineHeight: 1,
-};
+import { LuGraduationCap, LuMail, LuLock, LuEye, LuEyeOff, LuLogIn } from 'react-icons/lu';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -53,12 +30,20 @@ export default function LoginPage() {
     }
   };
 
+  const inputWrapStyle = { position: 'relative', display: 'flex', alignItems: 'center' };
+  const iconLeftStyle = { position: 'absolute', left: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', pointerEvents: 'none' };
+  const eyeBtnStyle = {
+    position: 'absolute', right: '0.75rem', background: 'none', border: 'none',
+    cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+    padding: '0', lineHeight: 1,
+  };
+
   return (
     <div className="login-page">
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">
-          <span className="icon">🎓</span>
+          <span className="icon"><LuGraduationCap size={40} /></span>
           <h1>TimeTable System</h1>
           <p>Academic Scheduling Platform</p>
         </div>
@@ -68,10 +53,7 @@ export default function LoginPage() {
         {failedAttempts >= 3 && (
           <div className="alert alert-warning" style={{ marginBottom: '0.75rem' }}>
             Too many failed attempts.{' '}
-            <Link
-              to="/forgot-password"
-              style={{ color: 'inherit', fontWeight: 'bold', textDecoration: 'underline' }}
-            >
+            <Link to="/forgot-password" style={{ color: 'inherit', fontWeight: 'bold', textDecoration: 'underline' }}>
               Forgot your password?
             </Link>
           </div>
@@ -80,43 +62,41 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Email Address</label>
-            <input
-              type="email"
-              placeholder="you@school.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
+            <div style={inputWrapStyle}>
+              <span style={iconLeftStyle}><LuMail size={16} /></span>
+              <input
+                type="email" placeholder="you@school.edu" value={email}
+                onChange={(e) => setEmail(e.target.value)} required autoFocus
+                style={{ paddingLeft: '2.5rem', width: '100%' }}
+              />
+            </div>
           </div>
           <div className="form-group">
             <label>Password</label>
             <div style={inputWrapStyle}>
+              <span style={iconLeftStyle}><LuLock size={16} /></span>
               <input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{ paddingRight: '2.5rem', width: '100%' }}
+                type={showPassword ? 'text' : 'password'} placeholder="Enter password"
+                value={password} onChange={(e) => setPassword(e.target.value)} required
+                style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem', width: '100%' }}
               />
               <button type="button" style={eyeBtnStyle} onClick={() => setShowPassword((v) => !v)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                <EyeIcon open={showPassword} />
+                {showPassword ? <LuEyeOff size={18} /> : <LuEye size={18} />}
               </button>
             </div>
           </div>
           <button className="btn btn-primary btn-full btn-lg mt-2" disabled={loading}>
-            {loading ? 'Signing in...' : 'Sign In →'}
+            {loading ? 'Signing in...' : <><LuLogIn size={18} /> Sign In</>}
           </button>
         </form>
 
         <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
           <p className="text-muted text-sm">
-            Don't have an account? <Link to="/signup" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>Sign up here</Link>
+            Don't have an account? <Link to="/signup" style={{ color: 'var(--primary)', fontWeight: '600' }}>Sign up here</Link>
           </p>
           {failedAttempts > 0 && failedAttempts < 3 && (
-            <p className="text-muted text-sm" style={{ marginTop: '0.5rem', color: 'var(--warning, #f59e0b)' }}>
+            <p className="text-muted text-sm" style={{ marginTop: '0.5rem', color: 'var(--warning)' }}>
               Failed attempt {failedAttempts}/3 — forgot password link appears after 3 tries.
             </p>
           )}

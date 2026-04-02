@@ -1,5 +1,8 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
 import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
@@ -8,6 +11,8 @@ import timetableRoutes from './routes/timetableRoutes.js';
 import expectationRoutes from './routes/expectationRoutes.js';
 import curriculumRoutes from './routes/curriculumRoutes.js';
 import subjectRoutes from './routes/subjectRoutes.js';
+import assignmentRoutes from './routes/assignmentRoutes.js';
+import departmentRoutes from './routes/departmentRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Load env variables
@@ -23,6 +28,12 @@ app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', creden
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static uploads
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
+
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Timetable API is running', timestamp: new Date() });
@@ -35,6 +46,8 @@ app.use('/api/timetables', timetableRoutes);
 app.use('/api/expectations', expectationRoutes);
 app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/subjects', subjectRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // Error handlers (must be last)
 app.use(notFound);

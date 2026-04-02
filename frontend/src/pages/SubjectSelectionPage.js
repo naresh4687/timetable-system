@@ -40,14 +40,14 @@ function StyledSelect({ label, value, onChange, disabled, children, loading }) {
           padding: '0.55rem 0.75rem',
           borderRadius: 8,
           border: '1px solid var(--border)',
-          background: disabled ? 'var(--bg-secondary)' : 'var(--bg)',
+          background: disabled ? '#f1f5f9' : 'var(--bg-white)',
           color: value ? 'var(--text)' : 'var(--text-muted)',
           opacity: disabled ? 0.6 : 1,
           cursor: disabled ? 'not-allowed' : 'pointer',
           fontSize: '0.9rem',
           transition: 'border-color 0.15s, box-shadow 0.15s',
         }}
-        onFocus={(e) => { e.target.style.borderColor = 'var(--accent)'; e.target.style.boxShadow = '0 0 0 3px var(--accent-glow)'; }}
+        onFocus={(e) => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px var(--primary-glow)'; }}
         onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       >
         {children}
@@ -70,8 +70,8 @@ function SubjectChip({ subject, selected, disabled, onToggle, accentColor = 'var
         gap: 8,
         padding: '0.5rem 0.9rem',
         borderRadius: 10,
-        border: selected ? `1.5px solid ${accentColor}` : '1.5px solid var(--border-light)',
-        background: selected ? `${accentColor}18` : 'var(--bg)',
+        border: selected ? `1.5px solid ${accentColor}` : '1.5px solid var(--border)',
+        background: selected ? `${accentColor}18` : 'var(--bg-white)',
         color: disabled && !selected ? 'var(--text-muted)' : selected ? accentColor : 'var(--text-dim)',
         opacity: disabled && !selected ? 0.55 : 1,
         cursor: disabled && !selected ? 'not-allowed' : 'pointer',
@@ -344,7 +344,7 @@ export default function SubjectSelectionPage() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: 24, height: 24, borderRadius: '50%',
-                  background: 'var(--accent)', color: '#fff',
+                  background: 'var(--primary)', color: '#fff',
                   fontSize: '0.72rem', fontWeight: 700, marginRight: 8,
                 }}
               >1</span>
@@ -395,9 +395,9 @@ export default function SubjectSelectionPage() {
                       flex: 1,
                       padding: '0.75rem 1rem',
                       borderRadius: 10,
-                      border: semesterType === type ? '2px solid var(--accent)' : '2px solid var(--border-light)',
-                      background: semesterType === type ? 'var(--accent-glow)' : 'var(--bg)',
-                      color: semesterType === type ? 'var(--accent)' : 'var(--text-dim)',
+                      border: semesterType === type ? '2px solid var(--primary)' : '2px solid var(--border)',
+                      background: semesterType === type ? 'var(--primary-glow)' : 'var(--bg-white)',
+                      color: semesterType === type ? 'var(--primary)' : 'var(--text-dim)',
                       fontWeight: semesterType === type ? 700 : 400,
                       cursor: 'pointer',
                       transition: 'all 0.15s',
@@ -438,9 +438,9 @@ export default function SubjectSelectionPage() {
                     style={{
                       padding: '0.55rem 1.2rem',
                       borderRadius: 8,
-                      border: semester === String(sem) ? '2px solid var(--accent)' : '2px solid var(--border-light)',
-                      background: semester === String(sem) ? 'var(--accent-glow)' : 'var(--bg)',
-                      color: semester === String(sem) ? 'var(--accent)' : 'var(--text-dim)',
+                      border: semester === String(sem) ? '2px solid var(--primary)' : '2px solid var(--border)',
+                      background: semester === String(sem) ? 'var(--primary-glow)' : 'var(--bg-white)',
+                      color: semester === String(sem) ? 'var(--primary)' : 'var(--text-dim)',
                       fontWeight: semester === String(sem) ? 700 : 400,
                       cursor: 'pointer',
                       transition: 'all 0.15s',
@@ -478,8 +478,8 @@ export default function SubjectSelectionPage() {
                   style={{
                     fontSize: '0.78rem', fontWeight: 600, padding: '0.2rem 0.65rem',
                     borderRadius: 20,
-                    background: selectedTheory.length >= 3 ? 'rgba(239,68,68,0.12)' : 'var(--accent-glow)',
-                    color: selectedTheory.length >= 3 ? '#ef4444' : 'var(--accent)',
+                    background: selectedTheory.length >= 3 ? 'rgba(239,68,68,0.12)' : 'var(--primary-glow)',
+                    color: selectedTheory.length >= 3 ? '#ef4444' : 'var(--primary)',
                   }}
                 >
                   {selectedTheory.length} / 3
@@ -560,13 +560,13 @@ export default function SubjectSelectionPage() {
         </div>
 
         {/* ── Right sidebar — summary ─────────────────────────── */}
-        <div className="card" style={{ position: 'sticky', top: '1rem' }}>
+        <div className="card" style={{ position: 'sticky', top: 'calc(var(--navbar-h) + 1rem)' }}>
           <h3 className="card-title mb-2">📋 Your Selection</h3>
 
           {/* Filter summary */}
           <div
             style={{
-              background: 'var(--bg-secondary)', borderRadius: 8,
+              background: '#f8fafc', borderRadius: 8,
               padding: '0.65rem 0.85rem', marginBottom: '1rem',
               fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 4,
             }}
@@ -600,8 +600,8 @@ export default function SubjectSelectionPage() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     fontSize: '0.82rem', padding: '0.3rem 0.5rem',
-                    background: 'var(--accent-glow)', borderRadius: 6,
-                    color: 'var(--accent)',
+                    background: 'var(--primary-glow)', borderRadius: 6,
+                    color: 'var(--primary)',
                   }}
                 >
                   <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.7 }}>#{i + 1}</span>
@@ -610,7 +610,7 @@ export default function SubjectSelectionPage() {
                     onClick={() => setSelectedTheory(p => p.filter((_, j) => j !== i))}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--accent)', fontSize: '0.9rem', padding: 0, lineHeight: 1,
+                      color: 'var(--primary)', fontSize: '0.9rem', padding: 0, lineHeight: 1,
                     }}
                   >
                     ×

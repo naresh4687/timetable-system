@@ -44,7 +44,14 @@ export const userAPI = {
   getById: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
   delete: (id) => api.delete(`/users/${id}`),
+  bulkDelete: (ids) => api.post('/users/bulk-delete', { ids }),
   getStaff: () => api.get('/users/staff'),
+  getStaffCount: () => api.get('/users/staff-count'),
+  getProfile: () => api.get('/users/profile'),
+  updateProfile: (data) => api.put('/users/profile', data),
+  uploadProfileImage: (formData) => api.post('/users/upload-image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 // ─── Timetables ──────────────────────────────────────────────────────────────
@@ -114,6 +121,26 @@ export const subjectAPI = {
 export const masterSubjectAPI = {
   getAll: () => api.get('/subjects/master'),
   create: (data) => api.post('/subjects/master', data),
+};
+
+// ─── Assignments ─────────────────────────────────────────────────────────────
+export const assignmentAPI = {
+  create: (data) => api.post('/assignments', data),
+  getAll: () => api.get('/assignments'),
+  getById: (id) => api.get(`/assignments/${id}`),
+  adminApprove: (id, data) => api.put(`/assignments/admin-approve/${id}`, data),
+  managerApprove: (id, data) => api.put(`/assignments/manager-approve/${id}`, data),
+  reject: (id, data) => api.put(`/assignments/reject/${id}`, data),
+  delete: (id) => api.delete(`/assignments/${id}`),
+  getPDFUrl: (id) => `${API_BASE}/assignments/${id}/pdf`,
+};
+
+// ─── Departments ─────────────────────────────────────────────────────────────
+export const departmentAPI = {
+  getAll: () => api.get('/departments'),
+  create: (data) => api.post('/departments', data),
+  update: (id, data) => api.put(`/departments/${id}`, data),
+  delete: (id) => api.delete(`/departments/${id}`),
 };
 
 export default api;

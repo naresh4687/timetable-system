@@ -4,6 +4,7 @@ import { timetableAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { semLabel, semToYear } from '../utils/semesterUtils';
+import { LuPlus, LuEye, LuDownload, LuPencil, LuTrash2, LuCalendarDays, LuBuilding, LuBookOpen, LuSearch } from 'react-icons/lu';
 
 export default function TimetablesPage() {
   const { user } = useAuth();
@@ -64,17 +65,21 @@ export default function TimetablesPage() {
         </div>
         {canEdit && (
           <button className="btn btn-primary" onClick={() => navigate('/timetables/new')}>
-            ➕ New Timetable
+            <LuPlus size={16} /> New Timetable
           </button>
         )}
       </div>
 
       <div className="filter-bar">
-        <input
-          placeholder="Filter by department..."
-          value={filters.department}
-          onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}
-        />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <LuSearch size={16} style={{ position: 'absolute', left: '0.75rem', color: 'var(--text-muted)' }} />
+          <input
+            placeholder="Filter by department..."
+            value={filters.department}
+            onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}
+            style={{ paddingLeft: '2.25rem' }}
+          />
+        </div>
         <select value={filters.semester} onChange={(e) => setFilters((f) => ({ ...f, semester: e.target.value }))}>
           <option value="">All Semesters</option>
           {[1,2,3,4,5,6,7,8].map((s) => (
@@ -90,52 +95,49 @@ export default function TimetablesPage() {
         <div className="loading-wrap"><div className="spinner" /></div>
       ) : timetables.length === 0 ? (
         <div className="empty-state">
-          <span className="icon">📅</span>
+          <span className="icon"><LuCalendarDays size={40} /></span>
           <p>No timetables found. {canEdit && 'Create one to get started.'}</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'grid', gap: '0.85rem' }}>
           {timetables.map((tt) => (
-            <div key={tt._id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <div key={tt._id} className="card" style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', padding: '1.15rem 1.5rem' }}>
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>{tt.title}</div>
-                <div className="flex-gap text-sm text-muted">
-                  <span>🏛️ {tt.department}</span>
+                <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem', color: 'var(--text)' }}>{tt.title}</div>
+                <div className="flex-gap text-sm text-muted" style={{ gap: '0.5rem' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBuilding size={13} /> {tt.department}</span>
                   <span>·</span>
-                  <span>🎓 Year {semToYear(tt.semester)}</span>
+                  <span>Year {semToYear(tt.semester)}</span>
                   <span>·</span>
-                  <span>📚 Semester {tt.semester}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBookOpen size={13} /> Semester {tt.semester}</span>
                   <span>·</span>
-                  <span>🔤 Section {tt.section}</span>
+                  <span>Section {tt.section}</span>
                   <span>·</span>
-                  <span>📆 {tt.academicYear}</span>
+                  <span>{tt.academicYear}</span>
                 </div>
-                <div className="text-sm text-muted" style={{ marginTop: '0.25rem' }}>
+                <div className="text-sm text-muted" style={{ marginTop: '0.3rem' }}>
                   Created by {tt.createdBy?.name} · {new Date(tt.createdAt).toLocaleDateString()}
-                  <span className={`badge badge-${tt.status || 'draft'}`} style={{ marginLeft: '1rem' }}>
+                  <span className={`badge badge-${tt.status || 'draft'}`} style={{ marginLeft: '0.75rem' }}>
                     {(tt.status || 'draft').toUpperCase()}
                   </span>
                 </div>
               </div>
 
-              <div className="flex-gap">
-                <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/timetables/${tt._id}`)}>
-                  👁️ View
+              <div className="action-buttons">
+                <button className="btn btn-info btn-sm" onClick={() => navigate(`/timetables/${tt._id}`)}>
+                  <LuEye size={14} /> View
                 </button>
-                <button
-                  className="btn btn-success btn-sm"
-                  onClick={() => handleDownload(tt._id, tt.department, tt.semester)}
-                >
-                  📥 PDF
+                <button className="btn btn-success btn-sm" onClick={() => handleDownload(tt._id, tt.department, tt.semester)}>
+                  <LuDownload size={14} /> PDF
                 </button>
                 {canEdit && (
                   <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/timetables/${tt._id}/edit`)}>
-                    ✏️ Edit
+                    <LuPencil size={14} /> Edit
                   </button>
                 )}
                 {canDelete && (
                   <button className="btn btn-danger btn-sm" onClick={() => handleDelete(tt._id, tt.title)}>
-                    🗑️
+                    <LuTrash2 size={14} />
                   </button>
                 )}
               </div>

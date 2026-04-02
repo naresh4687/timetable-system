@@ -28,6 +28,17 @@ export const AuthProvider = ({ children }) => {
     } else {
       setLoading(false);
     }
+
+    const handleProfileUpdate = () => {
+      try {
+        const updatedUser = JSON.parse(localStorage.getItem('user'));
+        if (updatedUser) setUser(updatedUser);
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('profile-updated', handleProfileUpdate);
+    return () => window.removeEventListener('profile-updated', handleProfileUpdate);
   }, []);
 
   const login = async (email, password) => {

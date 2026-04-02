@@ -3,6 +3,7 @@ import { expectationAPI, curriculumAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { semLabel, semToYear } from '../utils/semesterUtils';
+import { LuCheck, LuRefreshCw } from 'react-icons/lu';
 
 export default function PreferencesPage() {
   const { user } = useAuth();
@@ -27,7 +28,6 @@ export default function PreferencesPage() {
         curriculumAPI.getAll(),
         expectationAPI.getTaken(form.academicYear),
       ]);
-
       if (expRes.data.expectation) {
         const exp = expRes.data.expectation;
         setExisting(exp);
@@ -39,7 +39,6 @@ export default function PreferencesPage() {
           academicYear: exp.academicYear || '2025-2026',
         }));
       }
-
       setCurricula(curRes.data.curricula || []);
       setTakenExpectations(takenRes.data.taken || []);
     } catch (error) {
@@ -49,16 +48,11 @@ export default function PreferencesPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.academicYear]);
+  useEffect(() => { fetchData(); }, [form.academicYear]);
 
-  // Determine which semesters to show based on user handledSemesters OR the semType toggle
   const getActiveSemesters = () => {
     const assigned = user?.handledSemesters;
     if (assigned && assigned.length > 0) return assigned;
-    // Fallback: use odd/even toggle
     return semType === 'odd' ? [1, 3, 5, 7] : [2, 4, 6, 8];
   };
 
@@ -71,12 +65,7 @@ export default function PreferencesPage() {
           if (subj.type === 'theory') {
             for (let i = 0; i < curriculum.sections; i++) {
               const section = String.fromCharCode(65 + i);
-              available.push({
-                subject: subj.name,
-                code: subj.code,
-                semester: curriculum.semester,
-                section,
-              });
+              available.push({ subject: subj.name, code: subj.code, semester: curriculum.semester, section });
             }
           }
         });
@@ -92,11 +81,7 @@ export default function PreferencesPage() {
       if (sems.includes(curriculum.semester)) {
         curriculum.subjects.forEach((subj) => {
           if (subj.type === 'lab') {
-            labs.push({
-              name: `${subj.name} (Sem ${curriculum.semester})`,
-              code: subj.code,
-              semester: curriculum.semester,
-            });
+            labs.push({ name: `${subj.name} (Sem ${curriculum.semester})`, code: subj.code, semester: curriculum.semester });
           }
         });
       }
@@ -106,35 +91,21 @@ export default function PreferencesPage() {
 
   const isTaken = (subjectObj) => {
     return takenExpectations.some(
-      (t) =>
-        t.subject === subjectObj.subject &&
-        t.semester === subjectObj.semester &&
-        t.section === subjectObj.section
+      (t) => t.subject === subjectObj.subject && t.semester === subjectObj.semester && t.section === subjectObj.section
     );
   };
 
   const toggleTheory = (subjectObj) => {
     setForm((f) => {
       const exists = f.preferredTheorySubjects.some(
-        (s) =>
-          s.subject === subjectObj.subject &&
-          s.semester === subjectObj.semester &&
-          s.section === subjectObj.section
+        (s) => s.subject === subjectObj.subject && s.semester === subjectObj.semester && s.section === subjectObj.section
       );
-      if (!exists && f.preferredTheorySubjects.length >= 3) {
-        toast.error('Maximum 3 theory subjects allowed');
-        return f;
-      }
+      if (!exists && f.preferredTheorySubjects.length >= 3) { toast.error('Maximum 3 theory subjects allowed'); return f; }
       return {
         ...f,
         preferredTheorySubjects: exists
           ? f.preferredTheorySubjects.filter(
-              (s) =>
-                !(
-                  s.subject === subjectObj.subject &&
-                  s.semester === subjectObj.semester &&
-                  s.section === subjectObj.section
-                )
+              (s) => !(s.subject === subjectObj.subject && s.semester === subjectObj.semester && s.section === subjectObj.section)
             )
           : [...f.preferredTheorySubjects, subjectObj],
       };
@@ -142,10 +113,7 @@ export default function PreferencesPage() {
   };
 
   const handleSubmit = async () => {
-    if (form.preferredTheorySubjects.length === 0) {
-      toast.error('Please select at least one theory subject');
-      return;
-    }
+    if (form.preferredTheorySubjects.length === 0) { toast.error('Please select at least one theory subject'); return; }
     setSaving(true);
     try {
       await expectationAPI.submit(form);
@@ -172,16 +140,15 @@ export default function PreferencesPage() {
           <p className="page-subtitle">Select subjects you'd like to teach this semester</p>
         </div>
         {existing && (
-          <span className="badge badge-staff" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
-            ✓ Preferences Submitted
+          <span className="badge badge-staff" style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}>
+            <LuCheck size={14} style={{ marginRight: '0.25rem' }} /> Preferences Submitted
           </span>
         )}
       </div>
 
       {existing && (
         <div className="alert alert-success mb-2">
-          Your preferences were last updated on {new Date(existing.updatedAt || Date.now()).toLocaleDateString()}.
-          You can update them below.
+          Your preferences were last updated on {new Date(existing.updatedAt || Date.now()).toLocaleDateString()}. You can update them below.
         </div>
       )}
 
@@ -192,24 +159,15 @@ export default function PreferencesPage() {
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 180 }}>
                 <label>Academic Year</label>
-                <input
-                  value={form.academicYear}
-                  onChange={(e) => setForm((f) => ({ ...f, academicYear: e.target.value }))}
-                  placeholder="2025-2026"
-                />
+                <input value={form.academicYear} onChange={(e) => setForm((f) => ({ ...f, academicYear: e.target.value }))} placeholder="2025-2026" />
               </div>
 
-              {/* Only show semType toggle if user has no assigned semesters */}
               {!hasAssignedSemesters && (
                 <div className="form-group" style={{ margin: 0, flex: 1, minWidth: 180 }}>
                   <label>Semester Type</label>
-                  <select
-                    value={semType}
-                    onChange={(e) => setSemType(e.target.value)}
-                    style={{ width: '100%', padding: '0.5rem', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)' }}
-                  >
-                    <option value="odd">Odd – Sem 1 (Yr 1), Sem 3 (Yr 2), Sem 5 (Yr 3), Sem 7 (Yr 4)</option>
-                    <option value="even">Even – Sem 2 (Yr 1), Sem 4 (Yr 2), Sem 6 (Yr 3), Sem 8 (Yr 4)</option>
+                  <select value={semType} onChange={(e) => setSemType(e.target.value)}>
+                    <option value="odd">Odd – Sem 1, 3, 5, 7</option>
+                    <option value="even">Even – Sem 2, 4, 6, 8</option>
                   </select>
                 </div>
               )}
@@ -236,48 +194,39 @@ export default function PreferencesPage() {
                 <h3 className="card-title">Theory Subjects</h3>
                 <p className="card-subtitle">Select up to 3 theory subjects</p>
               </div>
-              <span style={{ fontSize: '0.78rem', color: form.preferredTheorySubjects.length >= 3 ? 'var(--warning)' : 'var(--text-muted)' }}>
+              <span style={{
+                fontSize: '0.78rem', fontWeight: 600, padding: '0.2rem 0.65rem', borderRadius: 20,
+                background: form.preferredTheorySubjects.length >= 3 ? 'var(--warning-light)' : 'var(--primary-light)',
+                color: form.preferredTheorySubjects.length >= 3 ? 'var(--warning)' : 'var(--primary)',
+              }}>
                 {form.preferredTheorySubjects.length} / 3 selected
               </span>
             </div>
             {theorySubjects.length === 0 ? (
               <p className="text-muted text-sm">
-                {hasAssignedSemesters
-                  ? 'No theory subjects found for your assigned semesters. Please contact the administrator.'
-                  : 'No curriculum defined for the selected semesters.'}
+                {hasAssignedSemesters ? 'No theory subjects found for your assigned semesters.' : 'No curriculum defined for the selected semesters.'}
               </p>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 {theorySubjects.map((s, idx) => {
                   const selected = form.preferredTheorySubjects.some(
-                    (pref) =>
-                      pref.subject === s.subject &&
-                      pref.semester === s.semester &&
-                      pref.section === s.section
+                    (pref) => pref.subject === s.subject && pref.semester === s.semester && pref.section === s.section
                   );
                   const taken = isTaken(s);
                   const disabled = taken && !selected;
                   const label = `${s.subject} (Yr ${semToYear(s.semester)} Sem ${s.semester} – Sec ${s.section})`;
-
                   return (
-                    <button
-                      key={`${s.subject}-${s.semester}-${s.section}-${idx}`}
-                      onClick={() => { if (!disabled) toggleTheory(s); }}
-                      disabled={disabled}
+                    <button key={`${s.subject}-${s.semester}-${s.section}-${idx}`}
+                      onClick={() => { if (!disabled) toggleTheory(s); }} disabled={disabled}
                       title={disabled ? 'Already selected by another staff' : ''}
                       style={{
-                        padding: '0.45rem 0.875rem',
-                        borderRadius: 20,
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
+                        padding: '0.45rem 0.875rem', borderRadius: 20, fontSize: '0.8rem', fontWeight: 500,
                         cursor: disabled ? 'not-allowed' : 'pointer',
-                        border: selected ? '1px solid var(--accent)' : '1px solid var(--border-light)',
-                        background: disabled ? 'var(--border-light)' : selected ? 'var(--accent-glow)' : 'var(--bg)',
-                        color: disabled ? 'var(--text-muted)' : selected ? 'var(--accent)' : 'var(--text-dim)',
-                        opacity: disabled ? 0.6 : 1,
-                        transition: 'all 0.15s',
-                      }}
-                    >
+                        border: selected ? '1.5px solid var(--primary)' : '1.5px solid var(--border)',
+                        background: disabled ? '#f1f5f9' : selected ? 'var(--primary-light)' : 'var(--bg-white)',
+                        color: disabled ? 'var(--text-muted)' : selected ? 'var(--primary)' : 'var(--text-secondary)',
+                        opacity: disabled ? 0.6 : 1, transition: 'all 0.15s', fontFamily: 'Inter, sans-serif',
+                      }}>
                       {selected ? '✓ ' : ''}{label} {disabled ? '🔒' : ''}
                     </button>
                   );
@@ -286,9 +235,9 @@ export default function PreferencesPage() {
             )}
           </div>
 
-          {/* Lab Subjects — now dynamic from curriculum */}
+          {/* Lab Subjects */}
           <div className="card mb-2">
-            <h3 className="card-title mb-2">Lab Subject <span className="text-muted text-sm">(Optional — select one)</span></h3>
+            <h3 className="card-title mb-2">Lab Subject <span className="text-muted text-sm" style={{ fontWeight: 400 }}>(Optional — select one)</span></h3>
             {labSubjects.length === 0 ? (
               <p className="text-muted text-sm">No lab subjects found for the selected semesters.</p>
             ) : (
@@ -296,21 +245,16 @@ export default function PreferencesPage() {
                 {labSubjects.map((lab) => {
                   const selected = form.preferredLabSubject === lab.name;
                   return (
-                    <button
-                      key={`${lab.code}-${lab.semester}`}
+                    <button key={`${lab.code}-${lab.semester}`}
                       onClick={() => setForm((f) => ({ ...f, preferredLabSubject: selected ? '' : lab.name }))}
                       style={{
-                        padding: '0.45rem 0.875rem',
-                        borderRadius: 20,
-                        fontSize: '0.8rem',
-                        fontWeight: 500,
-                        cursor: 'pointer',
-                        border: selected ? '1px solid #8b5cf6' : '1px solid var(--border-light)',
-                        background: selected ? 'rgba(139,92,246,0.1)' : 'var(--bg)',
-                        color: selected ? '#a78bfa' : 'var(--text-dim)',
+                        padding: '0.45rem 0.875rem', borderRadius: 20, fontSize: '0.8rem', fontWeight: 500,
+                        cursor: 'pointer', fontFamily: 'Inter, sans-serif',
+                        border: selected ? '1.5px solid #7c3aed' : '1.5px solid var(--border)',
+                        background: selected ? '#f5f3ff' : 'var(--bg-white)',
+                        color: selected ? '#7c3aed' : 'var(--text-secondary)',
                         transition: 'all 0.15s',
-                      }}
-                    >
+                      }}>
                       {selected ? '✓ ' : ''}{lab.name}
                     </button>
                   );
@@ -321,22 +265,18 @@ export default function PreferencesPage() {
 
           <div className="form-group">
             <label>Additional Notes (Optional)</label>
-            <textarea
-              rows={3}
-              placeholder="Any special requirements or availability constraints..."
-              value={form.additionalNotes}
-              onChange={(e) => setForm((f) => ({ ...f, additionalNotes: e.target.value }))}
-            />
+            <textarea rows={3} placeholder="Any special requirements or availability constraints..."
+              value={form.additionalNotes} onChange={(e) => setForm((f) => ({ ...f, additionalNotes: e.target.value }))} />
           </div>
         </div>
 
         {/* Summary sidebar */}
         <div>
-          <div className="card" style={{ position: 'sticky', top: '1rem' }}>
+          <div className="card" style={{ position: 'sticky', top: 'calc(var(--navbar-h) + 1rem)' }}>
             <h3 className="card-title mb-2">Your Selection</h3>
 
             <div className="mb-2">
-              <p className="text-muted text-sm mb-1" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.68rem' }}>
+              <p className="text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem', marginBottom: '0.5rem', fontWeight: 600 }}>
                 Theory Subjects ({form.preferredTheorySubjects.length}/3)
               </p>
               {form.preferredTheorySubjects.length === 0 ? (
@@ -344,8 +284,11 @@ export default function PreferencesPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {form.preferredTheorySubjects.map((s, i) => (
-                    <div key={`${s.subject}-${s.semester}-${s.section}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-                      <span style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: '0.7rem' }}>#{i + 1}</span>
+                    <div key={`${s.subject}-${s.semester}-${s.section}`} style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem',
+                      padding: '0.3rem 0.5rem', background: 'var(--primary-light)', borderRadius: 6, color: 'var(--primary)',
+                    }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.7 }}>#{i + 1}</span>
                       {s.subject} <span className="text-muted" style={{ fontSize: '0.75rem' }}>(Yr {semToYear(s.semester)} Sem {s.semester} – {s.section})</span>
                     </div>
                   ))}
@@ -354,23 +297,17 @@ export default function PreferencesPage() {
             </div>
 
             <div className="mb-2">
-              <p className="text-muted text-sm mb-1" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.68rem' }}>Lab Subject</p>
+              <p className="text-muted" style={{ textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.7rem', marginBottom: '0.4rem', fontWeight: 600 }}>Lab Subject</p>
               <p style={{ fontSize: '0.82rem' }}>
                 {form.preferredLabSubject || <span className="text-muted">None selected</span>}
               </p>
             </div>
 
-            <button
-              className="btn btn-primary btn-full"
-              onClick={handleSubmit}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : existing ? '🔄 Update Preferences' : '✅ Submit Preferences'}
+            <button className="btn btn-primary btn-full" onClick={handleSubmit} disabled={saving}>
+              {saving ? 'Saving...' : existing ? <><LuRefreshCw size={16} /> Update Preferences</> : <><LuCheck size={16} /> Submit Preferences</>}
             </button>
 
-            <p className="text-muted text-sm text-center mt-1">
-              You can update your preferences anytime
-            </p>
+            <p className="text-muted text-sm text-center mt-1">You can update your preferences anytime</p>
           </div>
         </div>
       </div>

@@ -31,7 +31,14 @@ const userSchema = new mongoose.Schema(
     },
     department: {
       type: String,
+      required: [true, 'Department is required'],
       trim: true,
+    },
+    dob: {
+      type: Date,
+    },
+    profileImage: {
+      type: String,
     },
     subjects: [
       {
