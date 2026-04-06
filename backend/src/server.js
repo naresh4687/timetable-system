@@ -13,6 +13,7 @@ import curriculumRoutes from './routes/curriculumRoutes.js';
 import subjectRoutes from './routes/subjectRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
+import constraintRoutes from './routes/constraintRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Load env variables
@@ -48,6 +49,7 @@ app.use('/api/curriculum', curriculumRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/departments', departmentRoutes);
+app.use('/api/constraints', constraintRoutes);
 
 // Error handlers (must be last)
 app.use(notFound);

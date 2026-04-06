@@ -143,4 +143,12 @@ export const departmentAPI = {
   delete: (id) => api.delete(`/departments/${id}`),
 };
 
+export const constraintAPI = {
+  create: (data) => api.post('/constraints', data),
+  getAll: () => api.get('/constraints'),
+  getByStaff: (staffId) => api.get(`/constraints/staff/${staffId}`),
+  update: (id, data) => api.put(`/constraints/${id}`, data),
+  delete: (id) => api.delete(`/constraints/${id}`),
+};
+
 export default api;

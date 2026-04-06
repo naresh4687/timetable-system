@@ -9,7 +9,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -19,11 +18,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      setFailedAttempts(0);
       navigate('/dashboard');
     } catch (err) {
-      const newCount = failedAttempts + 1;
-      setFailedAttempts(newCount);
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
@@ -49,15 +45,6 @@ export default function LoginPage() {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-
-        {failedAttempts >= 3 && (
-          <div className="alert alert-warning" style={{ marginBottom: '0.75rem' }}>
-            Too many failed attempts.{' '}
-            <Link to="/forgot-password" style={{ color: 'inherit', fontWeight: 'bold', textDecoration: 'underline' }}>
-              Forgot your password?
-            </Link>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -86,6 +73,13 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem', marginTop: '-0.5rem' }}>
+            <Link to="/forgot-password" style={{ fontSize: '0.875rem', color: 'var(--primary)', fontWeight: '500', textDecoration: 'none' }}>
+              Forgot Password?
+            </Link>
+          </div>
+
           <button className="btn btn-primary btn-full btn-lg mt-2" disabled={loading}>
             {loading ? 'Signing in...' : <><LuLogIn size={18} /> Sign In</>}
           </button>
@@ -95,11 +89,6 @@ export default function LoginPage() {
           <p className="text-muted text-sm">
             Don't have an account? <Link to="/signup" style={{ color: 'var(--primary)', fontWeight: '600' }}>Sign up here</Link>
           </p>
-          {failedAttempts > 0 && failedAttempts < 3 && (
-            <p className="text-muted text-sm" style={{ marginTop: '0.5rem', color: 'var(--warning)' }}>
-              Failed attempt {failedAttempts}/3 — forgot password link appears after 3 tries.
-            </p>
-          )}
         </div>
       </div>
     </div>

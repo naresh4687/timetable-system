@@ -4,6 +4,8 @@ import User from '../models/User.js';
 import * as pdfParse from 'pdf-parse';
 import * as docx from 'docx';
 import { parseCurriculumText } from '../utils/fileParser.js';
+import Constraint from '../models/Constraint.js';
+import { checkConstraints } from '../utils/constraintUtils.js';
 
 // ─── Period configuration ────────────────────────────────────────────────────
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -184,7 +186,7 @@ function bookStaff(staffId, dayName, periodIdx, allSchedules) {
  *   - Max 2 slots of the same theory subject per day
  *   - No forced break — all 7 periods are teaching periods
  */
-function generateSchedule(subjects, allStaff, globalStaffBookings) {
+function generateSchedule(subjects, allStaff, globalStaffBookings, globalStaffHours, allConstraints, semester, academicYear) {
     // Build pools of required slots
     const theoryPool = [];
     const labPool = [];
@@ -246,9 +248,28 @@ function generateSchedule(subjects, allStaff, globalStaffBookings) {
             const shuffledCandidates = shuffle(lab.staffCandidates);
             let assignedStaff = null;
             for (const staff of shuffledCandidates) {
-                const allAvail = blockIndices.every((idx) =>
-                    isStaffAvailable(staff._id.toString(), dayName, idx, globalStaffBookings)
+                const staffIdStr = staff._id.toString();
+                // Find constraint doc
+                const staffConstraint = allConstraints.find(c => 
+                    c.staffId.toString() === staffIdStr && 
+                    c.semester === semester && 
+                    c.academicYear === academicYear
                 );
+                
+                const pseudoStaff = { hours: globalStaffHours[staffIdStr] };
+                
+                let allAvail = true;
+                for (const idx of blockIndices) {
+                    if (!isStaffAvailable(staffIdStr, dayName, idx, globalStaffBookings)) {
+                        allAvail = false;
+                        break;
+                    }
+                    if (!checkConstraints(pseudoStaff, dayName, PERIODS[idx].period, staffConstraint)) {
+                        allAvail = false;
+                        break;
+                    }
+                }
+                
                 if (allAvail) {
                     assignedStaff = staff;
                     break;
@@ -268,8 +289,10 @@ function generateSchedule(subjects, allStaff, globalStaffBookings) {
 
             // Book the staff
             if (assignedStaff) {
+                const sIdStr = assignedStaff._id.toString();
+                globalStaffHours[sIdStr] += blockIndices.length;
                 for (const idx of blockIndices) {
-                    bookStaff(assignedStaff._id.toString(), dayName, idx, globalStaffBookings);
+                    bookStaff(sIdStr, dayName, idx, globalStaffBookings);
                 }
             }
 
@@ -297,18 +320,30 @@ function generateSchedule(subjects, allStaff, globalStaffBookings) {
             const shuffledCandidates = shuffle(theory.staffCandidates);
             let assignedStaff = null;
             for (const staff of shuffledCandidates) {
-                if (isStaffAvailable(staff._id.toString(), dayName, idx, globalStaffBookings)) {
-                    assignedStaff = staff;
-                    break;
+                const staffIdStr = staff._id.toString();
+                const staffConstraint = allConstraints.find(c => 
+                    c.staffId.toString() === staffIdStr && 
+                    c.semester === semester && 
+                    c.academicYear === academicYear
+                );
+                const pseudoStaff = { hours: globalStaffHours[staffIdStr] };
+
+                if (isStaffAvailable(staffIdStr, dayName, idx, globalStaffBookings)) {
+                    if (checkConstraints(pseudoStaff, dayName, PERIODS[idx].period, staffConstraint)) {
+                        assignedStaff = staff;
+                        break;
+                    }
                 }
             }
 
             slots[idx].subject = theory.name;
             slots[idx].type = 'theory';
             if (assignedStaff) {
+                const sIdStr = assignedStaff._id.toString();
                 slots[idx].staffId = assignedStaff._id;
                 slots[idx].staffName = assignedStaff.name;
-                bookStaff(assignedStaff._id.toString(), dayName, idx, globalStaffBookings);
+                globalStaffHours[sIdStr] += 1;
+                bookStaff(sIdStr, dayName, idx, globalStaffBookings);
             }
 
             theory.remaining--;
@@ -359,8 +394,13 @@ export const generateBulkTimetables = async (req, res, next) => {
             isActive: true,
         }).select('_id name subjects department');
 
+        // Fetch constraints
+        const allConstraints = await Constraint.find({});
+
         // Global staff bookings to prevent double-booking across ALL sections
         const globalStaffBookings = new Set();
+        const globalStaffHours = {};
+        allStaff.forEach(s => globalStaffHours[s._id.toString()] = 0);
 
         const created = [];
         const errors = [];
@@ -375,7 +415,11 @@ export const generateBulkTimetables = async (req, res, next) => {
                     const schedule = generateSchedule(
                         curriculum.subjects,
                         allStaff,
-                        globalStaffBookings
+                        globalStaffBookings,
+                        globalStaffHours,
+                        allConstraints,
+                        curriculum.semester,
+                        curriculum.academicYear
                     );
 
                     const year = Math.ceil(curriculum.semester / 2);

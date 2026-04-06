@@ -1,0 +1,19 @@
+[
+  {
+    "_id": "69ccd97256fa9958622da0a0",
+    "name": "Shanmugapriya S",
+    "email": "shanmugapriya@school.edu",
+    "password": "$2a$12$trAHjcadt6uUAB8Qt5vsWOh3rvyg0h4RyCT/uGqnTiqtFDgmjA3gy",
+    "role": "staff",
+    "department": "Artificial intelligence and Data Science",
+    "subjects": [],
+    "handledSemesters": [],
+    "isActive": true,
+    "failedLoginAttempts": 7,
+    "passwordResetToken": null,
+    "passwordResetExpires": null,
+    "createdAt": "2026-04-01T08:38:10.630Z",
+    "updatedAt": "2026-04-06T07:14:09.986Z",
+    "__v": 0
+  }
+]

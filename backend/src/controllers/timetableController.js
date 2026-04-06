@@ -1,9 +1,11 @@
 import TimeTable from '../models/TimeTable.js';
+import Constraint from '../models/Constraint.js';
+import { checkConstraints } from '../utils/constraintUtils.js';
 
 /**
- * Validates no staff double-booking and no classroom conflicts
+ * Validates no staff double-booking, no classroom conflicts, and no constraint violations
  */
-const validateSchedule = (schedule) => {
+const validateSchedule = (schedule, constraintsMap = {}) => {
   const staffSlots = {}; // staffId -> [day+time]
   const classroomSlots = {}; // classroom -> [day+time]
 
@@ -20,6 +22,15 @@ const validateSchedule = (schedule) => {
           return `Staff ${slot.staffName || slot.staffId} is double-booked on ${day.day} at ${slot.startTime}`;
         }
         staffSlots[key] = true;
+
+        // Check constraints
+        const constraint = constraintsMap[slot.staffId];
+        if (constraint) {
+          const pseudoStaff = { hours: 0 }; // Ignored here as we're just checking day/period
+          if (!checkConstraints(pseudoStaff, day.day, slot.period, constraint)) {
+             return `Staff ${slot.staffName || slot.staffId} cannot be assigned to ${day.day} P${slot.period} due to their constraints`;
+          }
+        }
       }
 
       // Check classroom conflict
@@ -50,7 +61,19 @@ export const createTimetable = async (req, res, next) => {
 
     // Validate schedule for conflicts
     if (schedule && schedule.length > 0) {
-      const conflict = validateSchedule(schedule);
+      // Find all staff involved
+      const staffIds = new Set();
+      schedule.forEach(day => day.slots.forEach(slot => { if (slot.staffId) staffIds.add(slot.staffId) }));
+      
+      const constraints = await Constraint.find({
+        staffId: { $in: Array.from(staffIds) },
+        academicYear,
+        semester
+      });
+      const constraintsMap = {};
+      constraints.forEach(c => { constraintsMap[c.staffId.toString()] = c });
+
+      const conflict = validateSchedule(schedule, constraintsMap);
       if (conflict) {
         return res.status(400).json({ message: `Schedule conflict: ${conflict}` });
       }
@@ -126,7 +149,29 @@ export const updateTimetable = async (req, res, next) => {
 
     // Validate schedule conflicts before updating
     if (schedule && schedule.length > 0) {
-      const conflict = validateSchedule(schedule);
+      const staffIds = new Set();
+      schedule.forEach(day => day.slots.forEach(slot => { if (slot.staffId) staffIds.add(slot.staffId) }));
+      
+      let currentAcadYear = academicYear;
+      let currentSemester = semester;
+      
+      if (!currentAcadYear || !currentSemester) {
+         const existingTT = await TimeTable.findById(req.params.id);
+         if (existingTT) {
+             currentAcadYear = currentAcadYear || existingTT.academicYear;
+             currentSemester = currentSemester || existingTT.semester;
+         }
+      }
+
+      const constraints = await Constraint.find({
+        staffId: { $in: Array.from(staffIds) },
+        academicYear: currentAcadYear,
+        semester: currentSemester
+      });
+      const constraintsMap = {};
+      constraints.forEach(c => { constraintsMap[c.staffId.toString()] = c });
+
+      const conflict = validateSchedule(schedule, constraintsMap);
       if (conflict) {
         return res.status(400).json({ message: `Schedule conflict: ${conflict}` });
       }

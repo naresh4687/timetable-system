@@ -12,6 +12,7 @@ import {
   LuFileText,
   LuBuilding2,
   LuCircleUser,
+  LuShieldBan,
 } from 'react-icons/lu';
 
 const navConfig = {
@@ -20,6 +21,7 @@ const navConfig = {
     { section: 'Management' },
     { label: 'Manage Departments', icon: LuBuilding2, to: '/departments' },
     { label: 'Manage Users', icon: LuUsers, to: '/users' },
+    { label: 'Manage Constraints', icon: LuShieldBan, to: '/constraints' },
     { label: 'Subject Allocated', icon: LuCircleCheck, to: '/assignments' },
     { label: 'Timetables', icon: LuCalendarDays, to: '/timetables' },
     { label: 'Subject Expectations', icon: LuClipboardCheck, to: '/expectations' },

@@ -20,6 +20,7 @@ import CurriculumPage from './pages/CurriculumPage';
 import AssignmentsPage from './pages/AssignmentsPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import ProfilePage from './pages/ProfilePage';
+import ConstraintsPage from './pages/ConstraintsPage';
 
 // Layout wrapper with sidebar + top navbar
 function AppLayout({ children }) {
@@ -161,6 +162,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <AppLayout><ProfilePage /></AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/constraints"
+        element={
+          <ProtectedRoute roles={['admin']}>
+            <AppLayout><ConstraintsPage /></AppLayout>
           </ProtectedRoute>
         }
       />
