@@ -4,7 +4,8 @@ import {
   getMyExpectation,
   getAllExpectations,
   deleteExpectation,
-  getTakenExpectations,
+  getEfficiency,
+  autoAssign,
 } from '../controllers/expectationController.js';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.js';
 
@@ -15,10 +16,11 @@ router.use(authMiddleware);
 // Staff routes
 router.post('/', roleMiddleware('staff'), submitExpectation);
 router.get('/me', roleMiddleware('staff'), getMyExpectation);
-router.get('/taken', roleMiddleware('staff'), getTakenExpectations);
 
 // Admin routes
 router.get('/', roleMiddleware('admin'), getAllExpectations);
+router.get('/efficiency', roleMiddleware('admin', 'manager'), getEfficiency);
+router.post('/auto-assign', roleMiddleware('admin', 'manager'), autoAssign);
 router.delete('/:id', roleMiddleware('admin'), deleteExpectation);
 
 export default router;

@@ -14,6 +14,7 @@ import subjectRoutes from './routes/subjectRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import departmentRoutes from './routes/departmentRoutes.js';
 import constraintRoutes from './routes/constraintRoutes.js';
+import batchRoutes from './routes/batchRoutes.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Load env variables
@@ -50,6 +51,7 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/departments', departmentRoutes);
 app.use('/api/constraints', constraintRoutes);
+app.use('/api/batch', batchRoutes);
 
 // Error handlers (must be last)
 app.use(notFound);

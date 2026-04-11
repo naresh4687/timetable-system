@@ -15,23 +15,32 @@ const validateSchedule = (schedule, constraintsMap = {}) => {
 
       const timeKey = `${day.day}-${slot.startTime}`;
 
-      // Check staff double-booking
-      if (slot.staffId) {
-        const key = `${slot.staffId}-${timeKey}`;
+      // ── Helper: validate one staff member against bookings + constraints ──
+      const validateOneStaff = (staffId, staffName) => {
+        if (!staffId) return null;
+        const key = `${staffId}-${timeKey}`;
         if (staffSlots[key]) {
-          return `Staff ${slot.staffName || slot.staffId} is double-booked on ${day.day} at ${slot.startTime}`;
+          return `Staff ${staffName || staffId} is double-booked on ${day.day} at ${slot.startTime}`;
         }
         staffSlots[key] = true;
 
-        // Check constraints
-        const constraint = constraintsMap[slot.staffId];
+        const constraint = constraintsMap[staffId.toString()];
         if (constraint) {
-          const pseudoStaff = { hours: 0 }; // Ignored here as we're just checking day/period
+          const pseudoStaff = { hours: 0 };
           if (!checkConstraints(pseudoStaff, day.day, slot.period, constraint)) {
-             return `Staff ${slot.staffName || slot.staffId} cannot be assigned to ${day.day} P${slot.period} due to their constraints`;
+            return `Staff ${staffName || staffId} cannot be assigned to ${day.day} P${slot.period} due to their constraints`;
           }
         }
-      }
+        return null;
+      };
+
+      // Check primary staff
+      const err1 = validateOneStaff(slot.staffId, slot.staffName);
+      if (err1) return err1;
+
+      // Check secondary staff (lab sessions)
+      const err2 = validateOneStaff(slot.staff2Id, slot.staff2Name);
+      if (err2) return err2;
 
       // Check classroom conflict
       if (slot.classroom) {
@@ -232,7 +241,7 @@ export const deleteTimetable = async (req, res, next) => {
 };
 
 /**
- * @desc    Download timetable as PDF
+ * @desc    Download timetable as PDF (Premium Institutional Layout)
  * @route   GET /api/timetables/:id/pdf
  * @access  All authenticated
  */
@@ -246,85 +255,136 @@ export const downloadTimetablePDF = async (req, res, next) => {
     if (!timetable) return res.status(404).json({ message: 'Timetable not found.' });
 
     const PDFDocument = (await import('pdfkit')).default;
-    const doc = new PDFDocument({ margin: 40, size: 'A4', layout: 'landscape' });
+    // Landscape A4 for maximum grid width
+    const doc = new PDFDocument({ 
+      margin: 30, 
+      size: 'A4', 
+      layout: 'landscape',
+      info: {
+        Title: timetable.title,
+        Author: 'TimeTable Allocation System',
+        Subject: `${timetable.department} - Semester ${timetable.semester}`
+      }
+    });
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="timetable-${timetable.department}-sem${timetable.semester}.pdf"`
+      `attachment; filename="REGISTER-${timetable.department}-S${timetable.semester}.pdf"`
     );
 
     doc.pipe(res);
 
-    // Title
-    doc.fontSize(20).font('Helvetica-Bold').text('TIMETABLE', { align: 'center' });
-    doc.moveDown(0.3);
-    doc.fontSize(14).font('Helvetica').text(timetable.title, { align: 'center' });
-    doc.moveDown(0.3);
-    doc
-      .fontSize(11)
-      .text(
-        `Department: ${timetable.department} | Semester: ${timetable.semester} | Section: ${timetable.section} | Academic Year: ${timetable.academicYear}`,
-        { align: 'center' }
-      );
-    doc.moveDown(1);
+    // ── Pre-Calculated Dimensions ──
+    const pageWidth = 841.89; // A4 Landscape width in points
+    const pageHeight = 595.28;
+    const margin = 30;
+    const innerWidth = pageWidth - (margin * 2);
+    
+    // Grid settings
+    const dayColWidth = 70;
+    const slotCount = timetable.schedule[0]?.slots.length || 7;
+    const colWidth = (innerWidth - dayColWidth) / slotCount;
+    const rowHeight = 45;
+    const headerHeight = 50;
 
-    // Table drawing
-    const days = timetable.schedule;
-    const allSlots = days[0]?.slots || [];
-    const colWidth = 100;
-    const rowHeight = 40;
-    const startX = 40;
-    let currentY = doc.y;
+    // ── BRANDING HEADER ──
+    // Draw top accent bar
+    doc.rect(0, 0, pageWidth, 5).fill('#FF3B3B');
+    
+    doc.fillColor('#0F0F0F').font('Helvetica-Bold').fontSize(24).text('INSTITUTIONAL REGISTRY', margin, 35, { characterSpacing: 2 });
+    doc.fillColor('#FF3B3B').font('Helvetica-Bold').fontSize(10).text('TIMETABLE ALLOCATION SYSTEM', margin, 62, { characterSpacing: 3 });
+    
+    // Metadata Box
+    const metaX = margin + 450;
+    doc.rect(metaX, 35, innerWidth - 450, 45).fill('#F9FAFB');
+    doc.fillColor('#0F0F0F').font('Helvetica-Bold').fontSize(12).text(timetable.title.toUpperCase(), metaX + 10, 42);
+    doc.fillColor('#94a3b8').font('Helvetica-Bold').fontSize(8).text(`DEPT: ${timetable.department} | SEM: ${timetable.semester} | SEC: ${timetable.section} | YEAR: ${timetable.academicYear}`, metaX + 10, 58);
 
-    // Draw header row
-    doc.fontSize(9).font('Helvetica-Bold');
-    doc.rect(startX, currentY, 80, rowHeight).fillAndStroke('#1e3a5f', '#000');
-    doc.fillColor('#ffffff').text('Day / Period', startX + 5, currentY + 14, { width: 70 });
+    doc.moveDown(4);
 
-    allSlots.forEach((slot, i) => {
-      const x = startX + 80 + i * colWidth;
-      doc.rect(x, currentY, colWidth, rowHeight).fillAndStroke('#1e3a5f', '#000');
-      doc
-        .fillColor('#ffffff')
-        .text(`P${slot.period}\n${slot.startTime}-${slot.endTime}`, x + 5, currentY + 8, {
-          width: colWidth - 10,
-        });
+    // ── GRID CONSTRUCTION ──
+    let currentY = doc.y + 10;
+
+    // Draw Period Headers
+    doc.rect(margin, currentY, innerWidth, headerHeight).fill('#0F0F0F');
+    
+    // Day Label Cell (Header)
+    doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9).text('PERIODS', margin + 10, currentY + 18);
+    doc.fontSize(7).text('WORKING DAYS', margin + 10, currentY + 30, { opacity: 0.5 });
+
+    const periods = timetable.schedule[0]?.slots || [];
+    periods.forEach((slot, i) => {
+      const x = margin + dayColWidth + (i * colWidth);
+      
+      // Period Number
+      doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text(`P${slot.period}`, x, currentY + 14, { width: colWidth, align: 'center' });
+      // Time Range
+      doc.fillColor('#FFFFFF').font('Helvetica-Oblique').fontSize(7).text(`${slot.startTime} - ${slot.endTime}`, x, currentY + 28, { width: colWidth, align: 'center', opacity: 0.6 });
+      
+      // Vertical separator line in header
+      if (i > 0) {
+        doc.lineWidth(0.1).strokeColor('#333333').moveTo(x, currentY + 10).lineTo(x, currentY + 40).stroke();
+      }
     });
-    currentY += rowHeight;
 
-    // Draw data rows
-    days.forEach((day, rowIdx) => {
-      const bgColor = rowIdx % 2 === 0 ? '#f0f4f8' : '#ffffff';
-      doc.rect(startX, currentY, 80, rowHeight).fillAndStroke(bgColor, '#ccc');
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#1e3a5f').text(day.day, startX + 5, currentY + 14, { width: 70 });
+    currentY += headerHeight;
 
+    // Draw Day Rows
+    timetable.schedule.forEach((day, rowIdx) => {
+      const rowY = currentY + (rowIdx * rowHeight);
+      
+      // Zebra striping
+      if (rowIdx % 2 === 1) {
+        doc.rect(margin, rowY, innerWidth, rowHeight).fill('#F9FAFB');
+      }
+
+      // Day Name Column
+      doc.fillColor('#0F0F0F').font('Helvetica-Bold').fontSize(10).text(day.day.toUpperCase(), margin + 10, rowY + 18);
+      
+      // Slots
       day.slots.forEach((slot, i) => {
-        const x = startX + 80 + i * colWidth;
-        const bg = slot.type === 'break' ? '#fef3c7' : bgColor;
-        doc.rect(x, currentY, colWidth, rowHeight).fillAndStroke(bg, '#ccc');
+        const x = margin + dayColWidth + (i * colWidth);
+        const padding = 5;
 
-        const text =
-          slot.type === 'break'
-            ? 'BREAK'
-            : slot.type === 'free'
-            ? 'FREE'
-            : `${slot.subject || '-'}\n${slot.staffName || ''}`;
+        // Draw node content
+        if (slot.type === 'break') {
+          doc.fillColor('#F1F5F9').rect(x + 2, rowY + 2, colWidth - 4, rowHeight - 4).fill();
+          doc.fillColor('#94a3b8').font('Helvetica-Bold').fontSize(7).text('BREAK / HIATUS', x, rowY + rowHeight/2 - 3, { width: colWidth, align: 'center' });
+        } else if (slot.type === 'free' || !slot.subject) {
+          doc.fillColor('#FDFDFD').rect(x + 2, rowY + 2, colWidth - 4, rowHeight - 4).fill();
+        } else {
+          // Highlight active slots
+          const borderHighlight = slot.type === 'lab' ? '#FF8C00' : '#FF3B3B';
+          doc.lineWidth(0.5).strokeColor('#e2e8f0').rect(x + 2, rowY + 2, colWidth - 4, rowHeight - 4).stroke();
+          
+          // Subject
+          doc.fillColor('#0F0F0F').font('Helvetica-Bold').fontSize(8).text(slot.subject.toUpperCase(), x + padding, rowY + 10, { width: colWidth - (padding * 2), height: 18, ellipsis: true });
+          
+          // Staff
+          doc.fillColor('#64748b').font('Helvetica').fontSize(7).text(slot.staffName || 'UNASSIGNED', x + padding, rowY + 24, { width: colWidth - (padding * 2) });
+          
+          // Classroom
+          if (slot.classroom) {
+            doc.fillColor('#FF3B3B').font('Helvetica-Bold').fontSize(6).text(`LOC: ${slot.classroom}`, x + padding, rowY + 34);
+          }
+        }
 
-        doc
-          .fontSize(8)
-          .font('Helvetica')
-          .fillColor('#333')
-          .text(text, x + 3, currentY + 6, { width: colWidth - 6, height: rowHeight - 8 });
+        // Horizontal line
+        doc.lineWidth(0.1).strokeColor('#E5E7EB').moveTo(margin, rowY + rowHeight).lineTo(margin + innerWidth, rowY + rowHeight).stroke();
       });
-      currentY += rowHeight;
     });
 
-    doc.moveDown(2);
-    doc
-      .fontSize(9)
-      .fillColor('#666')
-      .text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'right' });
+    // ── FOOTER AUTHENTICATION ──
+    const footerY = currentY + (timetable.schedule.length * rowHeight) + 40;
+    
+    doc.lineWidth(0.5).strokeColor('#0F0F0F').moveTo(margin, footerY).lineTo(margin + 200, footerY).stroke();
+    doc.fillColor('#0F0F0F').font('Helvetica-Bold').fontSize(8).text('AUTHORIZED SIGNATORY/STAMP', margin, footerY + 8);
+    
+    doc.fillColor('#94a3b8').font('Helvetica-Oblique').fontSize(8).text(`Document synchronized via Institutional Registry Cluster. Node: ${req.user.name}. Timestamp: ${new Date().toISOString()}`, margin, footerY + 30, { align: 'right', width: innerWidth });
+
+    // Final Page Border
+    doc.lineWidth(0.5).strokeColor('#F1F5F9').rect(10, 10, pageWidth - 20, pageHeight - 20).stroke();
 
     doc.end();
   } catch (error) {

@@ -5,6 +5,7 @@ import {
     getCurriculumBySemester,
     deleteCurriculum,
     generateBulkTimetables,
+    generateSingleSemesterTimetable,
     parseUploadedCurriculum,
 } from '../controllers/curriculumController.js';
 import { authMiddleware, roleMiddleware } from '../middleware/auth.js';
@@ -25,6 +26,8 @@ router.get('/:semester', getCurriculumBySemester);
 router.post('/', roleMiddleware('admin', 'manager'), saveCurriculum);
 router.delete('/:semester', roleMiddleware('admin', 'manager'), deleteCurriculum);
 router.post('/generate', roleMiddleware('admin', 'manager'), generateBulkTimetables);
+// Single-semester generation — must be BEFORE /:semester to avoid route conflict
+router.post('/generate/:semester', roleMiddleware('admin', 'manager'), generateSingleSemesterTimetable);
 router.post('/parse', roleMiddleware('admin', 'manager'), upload.single('file'), parseUploadedCurriculum);
 
 export default router;

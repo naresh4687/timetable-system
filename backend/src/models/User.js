@@ -40,10 +40,19 @@ const userSchema = new mongoose.Schema(
     profileImage: {
       type: String,
     },
+    category: {
+      type: String,
+      enum: ['A', 'B'],
+      default: 'B',
+      required: true,
+    },
     subjects: [
       {
-        type: String,
-        trim: true,
+        subjectId: { type: String, trim: true },
+        semester: { type: Number },
+        section: { type: String, trim: true },
+        type: { type: String, enum: ['theory', 'lab'] },
+        preference: { type: Number, enum: [1, 2, 3], default: 3 }, // 1: High, 2: Medium, 3: Low
       },
     ],
     handledSemesters: {

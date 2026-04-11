@@ -34,9 +34,15 @@ const subjectExpectationSchema = new mongoose.Schema(
         message: 'Maximum 3 theory subjects allowed',
       },
     },
-    preferredLabSubject: {
-      type: String,
-      default: null,
+    preferredLabSubjects: {
+      type: [
+        {
+          subject: { type: String, required: true },
+          semester: { type: Number, required: true },
+          section: { type: String, required: true },
+        }
+      ],
+      default: [],
     },
     additionalNotes: {
       type: String,

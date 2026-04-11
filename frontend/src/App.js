@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -21,16 +21,33 @@ import AssignmentsPage from './pages/AssignmentsPage';
 import DepartmentsPage from './pages/DepartmentsPage';
 import ProfilePage from './pages/ProfilePage';
 import ConstraintsPage from './pages/ConstraintsPage';
+import BatchManagementPage from './pages/BatchManagementPage';
+import { AnimatePresence, motion } from 'framer-motion';
+
+// Global Page Transition Wrapper
+const PageTransition = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    className="main-inner-container"
+  >
+    {children}
+  </motion.div>
+);
 
 // Layout wrapper with sidebar + top navbar
 function AppLayout({ children }) {
   return (
     <div className="app-layout">
       <Sidebar />
-      <TopNavbar />
       <main className="main-content">
-        <div className="main-content-inner">
-          {children}
+        <TopNavbar />
+        <div className="main-inner">
+          <PageTransition>
+            {children}
+          </PageTransition>
         </div>
       </main>
     </div>
@@ -39,152 +56,163 @@ function AppLayout({ children }) {
 
 function AppRoutes() {
   const { user } = useAuth();
+  const location = useLocation();
 
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
-      <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
-      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+        <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
 
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <AppLayout><DashboardPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <AppLayout><DashboardPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/users"
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <AppLayout><UsersPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AppLayout><UsersPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/departments"
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <AppLayout><DepartmentsPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/departments"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AppLayout><DepartmentsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/timetables"
-        element={
-          <ProtectedRoute>
-            <AppLayout><TimetablesPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/timetables"
+          element={
+            <ProtectedRoute>
+              <AppLayout><TimetablesPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/timetables/new"
-        element={
-          <ProtectedRoute roles={['admin', 'manager']}>
-            <AppLayout><TimetableEditorPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/timetables/new"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <AppLayout><TimetableEditorPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/timetables/:id"
-        element={
-          <ProtectedRoute>
-            <AppLayout><TimetableViewPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/timetables/:id"
+          element={
+            <ProtectedRoute>
+              <AppLayout><TimetableViewPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/timetables/:id/edit"
-        element={
-          <ProtectedRoute roles={['admin', 'manager']}>
-            <AppLayout><TimetableEditorPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/timetables/:id/edit"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <AppLayout><TimetableEditorPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/expectations"
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <AppLayout><ExpectationsPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/expectations"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AppLayout><ExpectationsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/preferences"
-        element={
-          <ProtectedRoute roles={['staff']}>
-            <AppLayout><SubjectSelectionPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/preferences"
+          element={
+            <ProtectedRoute roles={['staff']}>
+              <AppLayout><SubjectSelectionPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/staff"
-        element={
-          <ProtectedRoute roles={['admin', 'manager']}>
-            <AppLayout><StaffPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <AppLayout><StaffPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/curriculum"
-        element={
-          <ProtectedRoute roles={['admin', 'manager']}>
-            <AppLayout><CurriculumPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/curriculum"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <AppLayout><CurriculumPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Subject Assignments Routes */}
-      <Route
-        path="/assignments"
-        element={
-          <ProtectedRoute roles={['admin', 'manager']}>
-            <AppLayout><AssignmentsPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        {/* Subject Assignments Routes */}
+        <Route
+          path="/assignments"
+          element={
+            <ProtectedRoute roles={['admin', 'manager']}>
+              <AppLayout><AssignmentsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Profile – available to all authenticated users */}
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <AppLayout><ProfilePage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        {/* Profile – available to all authenticated users */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AppLayout><ProfilePage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      <Route
-        path="/constraints"
-        element={
-          <ProtectedRoute roles={['admin']}>
-            <AppLayout><ConstraintsPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/constraints"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AppLayout><ConstraintsPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/batches"
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AppLayout><BatchManagementPage /></AppLayout>
+            </ProtectedRoute>
+          }
+        />
 
-      {/* Default redirect */}
-      <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <AppRoutes />
         <Toaster

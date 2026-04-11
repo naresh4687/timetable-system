@@ -2,6 +2,13 @@ import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
+export const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const baseUrl = API_BASE.replace('/api', '');
+  return `${baseUrl}${path.startsWith('/') ? '' : '/'}${path}`;
+};
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE,
@@ -80,10 +87,11 @@ export const expectationAPI = {
   submit: (data) => api.post('/expectations', data),
   getMyExpectation: () => api.get('/expectations/me'),
   getAll: () => api.get('/expectations'),
-  getTaken: (year) =>
-    api.get(`/expectations/taken`, {
+  getEfficiency: (year) =>
+    api.get(`/expectations/efficiency`, {
       params: { academicYear: year ? year.replace(/–/g, '-') : year },
     }),
+  autoAssign: (data) => api.post('/expectations/auto-assign', data),
   delete: (id) => api.delete(`/expectations/${id}`),
 };
 
@@ -94,6 +102,7 @@ export const curriculumAPI = {
   save: (data) => api.post('/curriculum', data),
   delete: (sem) => api.delete(`/curriculum/${sem}`),
   generate: (data) => api.post('/curriculum/generate', data),
+  generateBySemester: (semester, data) => api.post(`/curriculum/generate/${semester}`, data),
   parseFile: (file) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -145,10 +154,17 @@ export const departmentAPI = {
 
 export const constraintAPI = {
   create: (data) => api.post('/constraints', data),
-  getAll: () => api.get('/constraints'),
+  getAll: (params) => api.get('/constraints', { params }),
   getByStaff: (staffId) => api.get(`/constraints/staff/${staffId}`),
   update: (id, data) => api.put(`/constraints/${id}`, data),
   delete: (id) => api.delete(`/constraints/${id}`),
+};
+
+export const batchAPI = {
+  getAll: () => api.get('/batch'),
+  create: (data) => api.post('/batch', data),
+  update: (id, data) => api.put(`/batch/${id}`, data),
+  delete: (id) => api.delete(`/batch/${id}`),
 };
 
 export default api;

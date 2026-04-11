@@ -1,9 +1,40 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { timetableAPI, userAPI, curriculumAPI } from '../services/api';
+import { timetableAPI, userAPI, curriculumAPI, departmentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { LuArrowLeft, LuSave, LuRocket, LuCheck, LuX, LuBuilding, LuBookOpen, LuCalendarDays } from 'react-icons/lu';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  Save, 
+  Rocket, 
+  Check, 
+  X, 
+  Building2, 
+  BookOpen, 
+  CalendarDays, 
+  Layers, 
+  LayoutGrid, 
+  Info,
+  Sparkles,
+  Coffee,
+  Plus,
+  Monitor,
+  Trash2,
+  Clock,
+  MoreVertical,
+  Activity,
+  Zap,
+  ArrowUpRight,
+  Fingerprint,
+  Cpu,
+  ShieldCheck,
+  Globe,
+  UserCheck,
+  MapPin,
+  ChevronRight,
+  Shield
+} from 'lucide-react';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
@@ -25,129 +56,157 @@ const makeSchedule = () =>
     })),
   }));
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 15, opacity: 0 },
+  visible: { y: 0, opacity: 1 }
+};
+
 // ─── CREATE MODE ────────────────────────────────────────────────────────────
 function CreateTimetableForm() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [department, setDepartment] = useState('AD&DS');
-  const [semType, setSemType] = useState('odd');
+  const [departments, setDepartments] = useState([]);
+  const [selectedDept, setSelectedDept] = useState('');
+  const [semType, setSemType] = useState(''); 
   const [loading, setLoading] = useState(false);
-  const [allCurricula, setAllCurricula] = useState([]);
-  const [fetchingCurricula, setFetchingCurricula] = useState(true);
+  const [fetchingData, setFetchingData] = useState(true);
 
   useEffect(() => {
-    curriculumAPI.getAll()
-      .then(({ data }) => setAllCurricula(data.curricula))
-      .catch(() => {})
-      .finally(() => setFetchingCurricula(false));
+    Promise.all([
+      curriculumAPI.getAll(),
+      departmentAPI.getAll().catch(() => ({ data: [] }))
+    ])
+    .then(([currRes, deptRes]) => {
+      setDepartments(deptRes.data || []);
+    })
+    .catch(() => {})
+    .finally(() => setFetchingData(false));
   }, []);
 
-  const semesters = semType === 'even' ? [2, 4, 6, 8] : [1, 3, 5, 7];
-  const semHasCurriculum = (sem) => allCurricula.some((c) => c.semester === sem);
-  const readySemesters = semesters.filter(semHasCurriculum);
-
   const handleGenerate = async () => {
-    if (!title.trim()) { toast.error('Please enter a title.'); return; }
-    if (readySemesters.length === 0) { toast.error('No curricula defined for selected semesters.'); return; }
+    if (!selectedDept) { toast.error('Department target required.'); return; }
+    if (!semType) { toast.error('Cycle target required.'); return; }
+    
     setLoading(true);
+    const cycleName = semType === 'odd' ? 'Odd Cycle' : 'Even Cycle';
+    const toastId = toast.loading(`Initializing ${cycleName} generation protocols for ${selectedDept}...`);
     try {
-      const { data } = await curriculumAPI.generate({ title, type: semType, department });
-      const count = data.created?.length || 0;
-      let msg = `${count} timetable(s) generated!`;
-      if (data.missingSemesters?.length > 0) msg += ` (Missing curriculum for Sem: ${data.missingSemesters.join(', ')})`;
-      toast.success(msg, { duration: 5000 });
-      setTimeout(() => navigate('/timetables'), 1000);
+      const payload = {
+        title: title.trim(),
+        department: selectedDept,
+        semesterType: semType
+      };
+      const { data } = await curriculumAPI.generate(payload);
+      toast.success(data.message, { id: toastId, duration: 6000 });
+      navigate('/timetables');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Generation failed.');
+      toast.error(err.response?.data?.message || 'Generation engine failure.', { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  if (fetchingCurricula) return <div className="loading-wrap"><div className="spinner" /></div>;
+  if (fetchingData) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+       <div className="relative w-12 h-12">
+          <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
+          <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin" />
+       </div>
+       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Syncing Engine Modules...</p>
+    </div>
+  );
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/timetables')} style={{ marginBottom: '0.5rem' }}>
-            <LuArrowLeft size={14} /> Back
-          </button>
-          <h1 className="page-title">Create Timetables</h1>
-          <p className="page-subtitle">Auto-generate timetables for all years & sections from curriculum</p>
-        </div>
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="max-w-3xl mx-auto space-y-12 py-10"
+    >
+      <div className="flex flex-col items-center text-center space-y-4">
+        <motion.div variants={itemVariants} className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-100 mb-2">
+          <Rocket size={32} />
+        </motion.div>
+        <motion.div variants={itemVariants} className="space-y-2">
+          <h1 className="text-4xl font-bold text-slate-900 tracking-tight leading-none uppercase">Generation <span className="text-indigo-600 font-medium lowercase">Engine</span></h1>
+          <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest leading-none">Automated Institutional Scheduling</p>
+        </motion.div>
       </div>
 
-      <div className="card mb-2">
-        <h3 className="card-title mb-2">Timetable Details</h3>
-        <div className="grid-2">
-          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-            <label>Title *</label>
-            <input placeholder="e.g. AD&DS 2025-2026 Odd Semester" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <motion.div variants={itemVariants} className="bg-white p-10 lg:p-12 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-10">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest ml-1">Instance Identity</label>
+            <div className="relative">
+              <Fingerprint className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+              <input 
+                className="saas-input h-14 pl-12 pr-6 bg-slate-50 border-slate-200 rounded-2xl text-base font-bold text-slate-900 placeholder:text-slate-300 focus:bg-white shadow-inner" 
+                placeholder="e.g. AD&DS 2025-2026 ARCHITECTURE" 
+                value={title} 
+                onChange={(e) => setTitle(e.target.value)} 
+              />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Department *</label>
-            <input value={department} onChange={(e) => setDepartment(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Semester Type *</label>
-            <select value={semType} onChange={(e) => setSemType(e.target.value)}>
-              <option value="odd">Odd Semesters (1, 3, 5, 7)</option>
-              <option value="even">Even Semesters (2, 4, 6, 8)</option>
-            </select>
-          </div>
-        </div>
-      </div>
 
-      <div className="card mb-2">
-        <h3 className="card-title mb-2">Timetables to Generate</h3>
-        <p className="text-muted text-sm" style={{ marginBottom: '1rem' }}>
-          Based on your curriculum, the following timetables will be auto-created. Labs will be allocated 4 consecutive periods.
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
-          {semesters.map((sem) => {
-            const curr = allCurricula.find((c) => c.semester === sem);
-            const year = Math.ceil(sem / 2);
-            return (
-              <div key={sem} style={{
-                padding: '0.85rem 1rem', borderRadius: 'var(--radius)',
-                background: curr ? 'var(--success-light)' : 'var(--danger-light)',
-                border: `1px solid ${curr ? 'rgba(22,163,74,0.2)' : 'rgba(220,38,38,0.2)'}`,
-              }}>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.3rem', color: 'var(--text)' }}>
-                  {curr ? <LuCheck size={14} style={{ color: 'var(--success)', marginRight: '0.3rem' }} /> : <LuX size={14} style={{ color: 'var(--danger)', marginRight: '0.3rem' }} />}
-                  Year {year} — Semester {sem}
-                </div>
-                {curr ? (
-                  <div className="text-sm text-muted">
-                    {curr.subjects.length} subject(s) · {curr.sections} section(s){' '}
-                    ({Array.from({ length: curr.sections }, (_, i) => String.fromCharCode(65 + i)).join(', ')})
-                    <br />↳ Will create <strong>{curr.sections}</strong> timetable(s)
-                  </div>
-                ) : (
-                  <div className="text-sm" style={{ color: 'var(--danger)' }}>
-                    No curriculum defined — <a href="/curriculum" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Set up curriculum →</a>
-                  </div>
-                )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest ml-1">Target Department</label>
+              <div className="relative">
+                <Building2 className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <select 
+                  value={selectedDept} 
+                  onChange={(e) => setSelectedDept(e.target.value)}
+                  className="saas-input pl-12 h-14 bg-slate-50 border-slate-200 rounded-2xl appearance-none cursor-pointer font-bold text-[11px] uppercase tracking-widest text-slate-700 focus:bg-white shadow-inner"
+                >
+                  <option value="">Identify Node...</option>
+                  {departments.map(d => <option key={d._id} value={d.name}>{d.name.toUpperCase()}</option>)}
+                </select>
               </div>
-            );
-          })}
-        </div>
+            </div>
 
-        <div className="alert alert-info" style={{ marginTop: '1.25rem', marginBottom: 0 }}>
-          <strong>Total:</strong> {readySemesters.length} semester(s) ready ·{' '}
-          {readySemesters.reduce((sum, sem) => { const c = allCurricula.find((cr) => cr.semester === sem); return sum + (c?.sections || 0); }, 0)} timetable(s) will be generated
-        </div>
-      </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest ml-1">Operational Cycle</label>
+              <div className="relative">
+                <Layers className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                <select 
+                  value={semType} 
+                  onChange={(e) => setSemType(e.target.value)}
+                  className="saas-input pl-12 h-14 bg-slate-50 border-slate-200 rounded-2xl appearance-none cursor-pointer font-bold text-[11px] uppercase tracking-widest text-slate-700 focus:bg-white shadow-inner"
+                >
+                  <option value="">Select Phase...</option>
+                  <option value="odd">Odd Cycle (1, 3, 5, 7)</option>
+                  <option value="even">Even Cycle (2, 4, 6, 8)</option>
+                </select>
+              </div>
+            </div>
+          </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/timetables')}>Cancel</button>
-        <button className="btn btn-primary" onClick={handleGenerate} disabled={loading || readySemesters.length === 0} style={{ minWidth: 200 }}>
-          {loading ? 'Generating...' : <><LuRocket size={16} /> Generate {readySemesters.reduce((sum, sem) => { const c = allCurricula.find((cr) => cr.semester === sem); return sum + (c?.sections || 0); }, 0)} Timetable(s)</>}
+          <button 
+            onClick={handleGenerate}
+            disabled={loading || !selectedDept || !semType}
+            className="premium-button w-full h-18 rounded-2xl text-[11px] font-bold uppercase tracking-widest active:scale-95 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3"
+          >
+            {loading ? <Activity size={20} className="animate-spin" /> : <Zap size={20} />}
+            {loading ? 'Initializing protocols...' : 'Activate generation'}
+          </button>
+      </motion.div>
+
+      <div className="flex justify-center">
+        <button 
+          onClick={() => navigate('/timetables')}
+          className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-all active:scale-95"
+        >
+          <ArrowLeft size={16} /> Abort and return
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -155,7 +214,7 @@ function CreateTimetableForm() {
 function EditTimetableForm({ id }) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [meta, setMeta] = useState({ title: '', department: 'AD&DS', semester: '', section: 'A', academicYear: '2025-2026' });
+  const [meta, setMeta] = useState({ title: '', department: '', semester: '', section: '', academicYear: '' });
   const [schedule, setSchedule] = useState(makeSchedule());
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -171,7 +230,7 @@ function EditTimetableForm({ id }) {
         setMeta({ title: tt.title, department: tt.department, semester: tt.semester, section: tt.section, academicYear: tt.academicYear });
         setSchedule(tt.schedule.length > 0 ? tt.schedule : makeSchedule());
       })
-      .catch(() => toast.error('Failed to load timetable'))
+      .catch(() => toast.error('Work-state retrieval failed'))
       .finally(() => setFetching(false));
   }, [id]);
 
@@ -192,124 +251,288 @@ function EditTimetableForm({ id }) {
     try {
       const payload = { ...meta, semester: Number(meta.semester), schedule };
       await timetableAPI.update(id, payload);
-      toast.success('Timetable updated!');
+      toast.success('Institutional synchronicity maintained');
       navigate(`/timetables/${id}`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save failed');
+      toast.error(err.response?.data?.message || 'Synchronization failure');
     } finally {
       setLoading(false);
     }
   };
 
-  if (fetching) return <div className="loading-wrap"><div className="spinner" /></div>;
+  if (fetching) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+       <div className="relative w-12 h-12">
+          <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
+          <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin" />
+       </div>
+       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Decoding Workspace State...</p>
+    </div>
+  );
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/timetables')} style={{ marginBottom: '0.5rem' }}>
-            <LuArrowLeft size={14} /> Back
-          </button>
-          <h1 className="page-title">Edit Timetable</h1>
-          <p className="page-subtitle">{meta.title}</p>
+    <div className="space-y-10 pb-20">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+             <div className="w-1 h-8 bg-indigo-600 rounded-full" />
+             <div>
+                <div className="flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-[10px] mb-1 leading-none italic">
+                  <Activity size={14} className="animate-pulse" />
+                  Override active
+                </div>
+                <h1 className="text-3xl font-bold text-slate-900 tracking-tight leading-none uppercase max-w-2xl overflow-hidden text-ellipsis whitespace-nowrap">
+                   {meta.title}
+                </h1>
+             </div>
+          </div>
+          
+          <div className="flex items-center flex-wrap gap-2 sm:ml-5">
+             <div className="px-4 py-1.5 bg-white text-slate-500 rounded-xl flex items-center gap-2 border border-slate-200 shadow-sm">
+                <Building2 size={13} className="text-indigo-600" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">{meta.department}</span>
+             </div>
+             <div className="px-4 py-1.5 bg-white text-slate-500 rounded-xl flex items-center gap-2 border border-slate-200 shadow-sm">
+                <BookOpen size={13} className="text-indigo-600" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Phase {meta.semester}</span>
+             </div>
+             <div className="px-4 py-1.5 bg-white text-slate-500 rounded-xl flex items-center gap-2 border border-slate-200 shadow-sm">
+                <Monitor size={13} className="text-indigo-600" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Section {meta.section}</span>
+             </div>
+          </div>
         </div>
-        <div className="action-buttons">
-          <button className="btn btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
-            {loading ? 'Saving...' : <><LuSave size={16} /> Update</>}
+
+        <div className="flex items-center gap-4 w-full lg:w-auto">
+          <button 
+            onClick={() => navigate(-1)}
+            className="h-12 px-6 bg-white border border-slate-200 rounded-xl text-[11px] font-bold uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-all active:scale-95 w-full lg:w-auto shadow-sm"
+          >
+            Abort
+          </button>
+          <button 
+            onClick={handleSave}
+            disabled={loading}
+            className="premium-button h-12 px-8 rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-indigo-100 active:scale-95 transition-all w-full lg:w-auto flex items-center justify-center gap-2"
+          >
+            {loading ? <Activity size={18} className="animate-spin" /> : <Save size={18} />}
+            {loading ? 'Commiting...' : 'Save Workspace'}
           </button>
         </div>
       </div>
 
-      <div className="card mb-2" style={{ padding: '0.85rem 1.15rem' }}>
-        <div className="flex-gap text-sm">
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBuilding size={14} /> <strong>{meta.department}</strong></span>
-          <span>·</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuBookOpen size={14} /> Semester {meta.semester}</span>
-          <span>·</span>
-          <span>Section {meta.section}</span>
-          <span>·</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><LuCalendarDays size={14} /> {meta.academicYear}</span>
+      {/* Grid Container */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden"
+      >
+        <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/10">
+           <div className="space-y-1">
+              <h3 className="text-xl font-bold text-slate-900 tracking-tight uppercase leading-none">Spatial Matrix</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Institutional Time Mapping</p>
+           </div>
+           <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                 <div className="w-3 h-3 bg-indigo-50 border border-indigo-200 rounded" />
+                 THEORY
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400">
+                 <div className="w-3 h-3 bg-emerald-50 border border-emerald-200 rounded" />
+                 LAB
+              </div>
+           </div>
         </div>
-      </div>
 
-      <div className="card" style={{ padding: '1rem' }}>
-        <h3 className="card-title mb-1">Weekly Schedule</h3>
-        <p className="text-muted text-sm mb-2">Click any cell to edit subject, staff, and classroom details.</p>
-
-        <div className="tt-grid">
-          <table className="tt-table">
+        <div className="overflow-x-auto no-scrollbar min-h-[500px]">
+          <table className="w-full border-collapse">
             <thead>
-              <tr>
-                <th style={{ textAlign: 'left', minWidth: 110 }}>Day</th>
+              <tr className="bg-slate-50/50">
+                <th className="p-6 text-left w-[120px] sticky left-0 z-30 bg-slate-50 border-r border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</span>
+                </th>
                 {schedule[0]?.slots.map((slot) => (
-                  <th key={slot.period}>
-                    P{slot.period}<br />
-                    <span style={{ fontWeight: 400, fontSize: '0.65rem' }}>{slot.startTime}–{slot.endTime}</span>
+                  <th key={slot.period} className="p-6 text-center min-w-[200px] border-b border-slate-100">
+                    <div className="space-y-1.5">
+                       <span className="text-[11px] font-bold text-slate-900 uppercase">Cycle {slot.period}</span>
+                       <div className="text-[10px] font-bold text-slate-400 tracking-tight flex items-center justify-center gap-1.5">
+                          <Clock size={12} className="text-indigo-400" />
+                          {slot.startTime} – {slot.endTime}
+                       </div>
+                    </div>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {schedule.map((day, dayIdx) => (
-                <tr key={day.day}>
-                  <td style={{ fontWeight: 600, color: 'var(--text)', fontSize: '0.82rem', padding: '0.5rem' }}>
+                <tr key={day.day} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/30 transition-colors">
+                  <td className="p-6 sticky left-0 z-20 bg-white border-r border-slate-100 font-bold text-slate-900 text-sm uppercase">
                     {day.day}
                   </td>
-                  {day.slots.map((slot, slotIdx) => (
-                    <td key={slotIdx} className="tt-cell" style={{ padding: '0.3rem' }}>
-                      {editingCell?.dayIdx === dayIdx && editingCell?.slotIdx === slotIdx ? (
-                        <div style={{ minWidth: 150 }}>
-                          <select value={slot.type} onChange={(e) => updateSlot(dayIdx, slotIdx, 'type', e.target.value)}
-                            style={{ marginBottom: '0.3rem', fontSize: '0.72rem', padding: '0.25rem' }}>
-                            <option value="theory">Theory</option>
-                            <option value="lab">Lab</option>
-                            <option value="break">Break</option>
-                            <option value="free">Free</option>
-                          </select>
-                          {slot.type !== 'break' && slot.type !== 'free' && (
-                            <>
-                              <input placeholder="Subject" value={slot.subject}
-                                onChange={(e) => updateSlot(dayIdx, slotIdx, 'subject', e.target.value)}
-                                style={{ marginBottom: '0.25rem', fontSize: '0.72rem', padding: '0.25rem' }} />
-                              <select value={slot.staffId} onChange={(e) => updateSlot(dayIdx, slotIdx, 'staffId', e.target.value)}
-                                style={{ marginBottom: '0.25rem', fontSize: '0.72rem', padding: '0.25rem' }}>
-                                <option value="">Select Staff</option>
-                                {staff.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
-                              </select>
-                              <input placeholder="Room/Lab" value={slot.classroom}
-                                onChange={(e) => updateSlot(dayIdx, slotIdx, 'classroom', e.target.value)}
-                                style={{ marginBottom: '0.25rem', fontSize: '0.72rem', padding: '0.25rem' }} />
-                            </>
-                          )}
-                          <button className="btn btn-primary btn-sm"
-                            style={{ width: '100%', marginTop: '0.25rem', fontSize: '0.7rem', padding: '0.25rem' }}
-                            onClick={() => setEditingCell(null)}>
-                            <LuCheck size={12} /> Done
-                          </button>
-                        </div>
-                      ) : (
-                        <div onClick={() => setEditingCell({ dayIdx, slotIdx })} style={{ cursor: 'pointer', minHeight: 52 }}>
-                          {slot.type === 'break' ? (
-                            <div className="tt-break">☕ Break</div>
-                          ) : slot.type === 'free' || !slot.subject ? (
-                            <div className="tt-free" style={{ fontSize: '0.7rem' }}>+ Add</div>
+                  {day.slots.map((slot, slotIdx) => {
+                    const isEditing = editingCell?.dayIdx === dayIdx && editingCell?.slotIdx === slotIdx;
+                    return (
+                      <td key={slotIdx} className="p-3 relative">
+                        <AnimatePresence mode="wait">
+                          {isEditing ? (
+                            <motion.div 
+                              initial={{ scale: 0.95, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.95, opacity: 0 }}
+                              className="w-[260px] bg-white border border-indigo-200 p-6 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.1)] absolute z-40 space-y-5 left-1/2 -translate-x-1/2 -top-10"
+                            >
+                               <div className="space-y-1.5">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block">Mapping Type</label>
+                                  <select 
+                                    value={slot.type} 
+                                    onChange={(e) => updateSlot(dayIdx, slotIdx, 'type', e.target.value)}
+                                    className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[11px] font-bold uppercase text-slate-700 outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                                  >
+                                     <option value="theory">THEORY NODE</option>
+                                     <option value="lab">LABORATORY NODE</option>
+                                     <option value="break">INTERMISSION</option>
+                                     <option value="free">VACANT CELL</option>
+                                  </select>
+                               </div>
+
+                               {slot.type !== 'break' && slot.type !== 'free' && (
+                                 <div className="space-y-4">
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block">Course</label>
+                                      <input 
+                                        placeholder="Course name..." 
+                                        value={slot.subject}
+                                        onChange={(e) => updateSlot(dayIdx, slotIdx, 'subject', e.target.value)}
+                                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium text-slate-900 placeholder:text-slate-300 outline-none focus:border-indigo-500 transition-all shadow-inner" 
+                                      />
+                                   </div>
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block">Personnel</label>
+                                      <select 
+                                        value={slot.staffId} 
+                                        onChange={(e) => updateSlot(dayIdx, slotIdx, 'staffId', e.target.value)}
+                                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-[11px] font-bold uppercase text-slate-700 outline-none focus:border-indigo-500 transition-all appearance-none cursor-pointer"
+                                      >
+                                        <option value="">Sync Staff...</option>
+                                        {staff.map((s) => <option key={s._id} value={s._id}>{s.name.toUpperCase()}</option>)}
+                                      </select>
+                                   </div>
+                                   <div className="space-y-1.5">
+                                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 block">Location</label>
+                                      <input 
+                                        placeholder="Room ID..." 
+                                        value={slot.classroom}
+                                        onChange={(e) => updateSlot(dayIdx, slotIdx, 'classroom', e.target.value)}
+                                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium text-slate-900 placeholder:text-slate-300 outline-none focus:border-indigo-500 transition-all shadow-inner" 
+                                      />
+                                   </div>
+                                 </div>
+                               )}
+
+                               <button 
+                                 onClick={() => setEditingCell(null)}
+                                 className="premium-button w-full h-12 rounded-xl flex items-center justify-center gap-2 text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-100"
+                               >
+                                 <Check size={18} /> Commit cell
+                               </button>
+                            </motion.div>
                           ) : (
-                            <div className="tt-slot">
-                              <div className="tt-slot-subject">{slot.subject}</div>
-                              {slot.staffName && <div className="tt-slot-staff">{slot.staffName}</div>}
-                              {slot.classroom && <div className="tt-slot-room">{slot.classroom}</div>}
+                            <div 
+                              onClick={() => setEditingCell({ dayIdx, slotIdx })}
+                              className={`h-28 rounded-3xl border-2 transition-all duration-300 cursor-pointer p-4 flex flex-col justify-between group ${
+                                slot.type === 'break' ? 'bg-slate-50 border-slate-100 opacity-60' :
+                                slot.type === 'free' || !slot.subject ? 'bg-transparent border-dashed border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30' :
+                                slot.type === 'lab' ? 'bg-emerald-50 border-emerald-100 hover:border-emerald-300 hover:shadow-lg' :
+                                'bg-indigo-50 border-indigo-100 hover:border-indigo-300 hover:shadow-lg'
+                              }`}
+                            >
+                               {slot.type === 'break' ? (
+                                 <div className="flex flex-col items-center justify-center h-full gap-2 opacity-30">
+                                    <Coffee size={20} />
+                                    <span className="text-[9px] font-bold uppercase">Break</span>
+                                 </div>
+                               ) : slot.type === 'free' || !slot.subject ? (
+                                 <div className="flex flex-col items-center justify-center h-full gap-1.5 text-slate-300 group-hover:text-indigo-400">
+                                    <Plus size={16} />
+                                    <span className="text-[9px] font-bold uppercase tracking-widest">Unassigned</span>
+                                 </div>
+                               ) : (
+                                 <>
+                                   <div className="space-y-1.5 overflow-hidden">
+                                      <div className="flex items-center gap-2">
+                                         <div className={`w-1.5 h-1.5 rounded-full ${slot.type === 'lab' ? 'bg-emerald-500' : 'bg-indigo-600'}`} />
+                                         <span className={`text-[9px] font-bold uppercase tracking-widest ${slot.type === 'lab' ? 'text-emerald-600' : 'text-indigo-600'}`}>
+                                           {slot.type}
+                                         </span>
+                                      </div>
+                                      <h5 className="text-[12px] font-bold text-slate-900 leading-tight uppercase truncate">
+                                        {slot.subject}
+                                      </h5>
+                                   </div>
+                                   <div className="pt-2 border-t border-slate-100/50">
+                                      <div className="flex items-center gap-2">
+                                         <UserCheck size={12} className="text-slate-300 shrink-0" />
+                                         <span className="text-[10px] font-bold text-slate-500 truncate uppercase">
+                                           {slot.staffName || 'Pnd.'}
+                                         </span>
+                                      </div>
+                                      {slot.classroom && (
+                                        <div className="flex items-center gap-2 mt-1">
+                                           <MapPin size={10} className="text-slate-300 shrink-0" />
+                                           <span className="text-[9px] font-bold text-slate-300 uppercase truncate">
+                                             {slot.classroom}
+                                           </span>
+                                        </div>
+                                      )}
+                                   </div>
+                                 </>
+                               )}
                             </div>
                           )}
-                        </div>
-                      )}
-                    </td>
-                  ))}
+                        </AnimatePresence>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      </motion.div>
+
+      {/* Aggregate Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex items-center gap-6 shadow-sm">
+            <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 border border-indigo-100 shadow-inner">
+               <Cpu size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grid Status</p>
+               <h4 className="text-lg font-bold text-slate-900 uppercase">Synchronized</h4>
+            </div>
+         </div>
+         <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex items-center gap-6 shadow-sm">
+            <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-inner">
+               <CalendarDays size={28} />
+            </div>
+            <div>
+               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Load Balance</p>
+               <h4 className="text-lg font-bold text-slate-900 uppercase">{schedule.reduce((acc, day) => acc + day.slots.filter(s => s.subject).length, 0)} Active Nodes</h4>
+            </div>
+         </div>
+         <div className="bg-indigo-600 p-8 rounded-[2.5rem] border border-indigo-500 shadow-xl shadow-indigo-100 flex items-center gap-6 group cursor-pointer hover:bg-indigo-700 transition-all">
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center text-white border border-white/10 shadow-lg">
+               <Globe size={28} className="animate-pulse" />
+            </div>
+            <div className="text-white">
+               <p className="text-[10px] font-bold text-indigo-100 uppercase tracking-widest mb-1">Institutional Sync</p>
+               <h4 className="text-lg font-bold uppercase flex items-center gap-2">
+                 Override <ArrowUpRight size={18} />
+               </h4>
+            </div>
+         </div>
       </div>
     </div>
   );
@@ -317,6 +540,17 @@ function EditTimetableForm({ id }) {
 
 export default function TimetableEditorPage() {
   const { id } = useParams();
-  if (id) return <EditTimetableForm id={id} />;
-  return <CreateTimetableForm />;
+  return (
+    <AnimatePresence mode="wait">
+      {id ? (
+        <motion.div key="edit" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <EditTimetableForm id={id} />
+        </motion.div>
+      ) : (
+        <motion.div key="create" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <CreateTimetableForm />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }

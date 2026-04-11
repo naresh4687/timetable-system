@@ -27,6 +27,16 @@ const timeSlotSchema = new mongoose.Schema({
   staffName: {
     type: String,
   },
+  // ── Dual-staff support for lab sessions ─────────────────────────────────
+  staff2Id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  staff2Name: {
+    type: String,
+    default: '',
+  },
   classroom: {
     type: String,
     trim: true,

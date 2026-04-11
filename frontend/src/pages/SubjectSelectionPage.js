@@ -1,691 +1,542 @@
-import { useState, useEffect, useCallback } from 'react';
-import { subjectAPI, expectationAPI } from '../services/api';
+import { useState, useEffect } from 'react';
+import { expectationAPI, curriculumAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
+import { semToYear } from '../utils/semesterUtils';
+import { 
+  CheckCircle2, 
+  ChevronDown, 
+  ChevronUp, 
+  AlertCircle, 
+  AlertTriangle,
+  History,
+  BookOpen,
+  FlaskConical,
+  LayoutDashboard,
+  Calendar,
+  Save,
+  Plus,
+  FileText,
+  Activity,
+  Fingerprint,
+  Cpu,
+  ShieldCheck,
+  Layout,
+  Layers,
+  Zap,
+  RotateCcw,
+  Target,
+  Box,
+  Compass,
+  ArrowRight,
+  ArrowUpRight,
+  Monitor,
+  ChevronRight
+} from 'lucide-react';
 
-/* ─── Small SVG spinner ───────────────────────────────────────────────────── */
-function Spinner({ size = 20 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{ animation: 'spin 0.8s linear infinite', display: 'inline-block' }}
-    >
-      <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-      <path d="M12 2a10 10 0 0 1 10 10" />
-    </svg>
-  );
-}
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
 
-/* ─── Styled Select wrapper ───────────────────────────────────────────────── */
-function StyledSelect({ label, value, onChange, disabled, children, loading }) {
-  return (
-    <div className="form-group" style={{ margin: 0, flex: '1 1 200px', minWidth: 180 }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {label}
-        {loading && <Spinner size={14} />}
-      </label>
-      <select
-        value={value}
-        onChange={onChange}
-        disabled={disabled || loading}
-        style={{
-          width: '100%',
-          padding: '0.55rem 0.75rem',
-          borderRadius: 8,
-          border: '1px solid var(--border)',
-          background: disabled ? '#f1f5f9' : 'var(--bg-white)',
-          color: value ? 'var(--text)' : 'var(--text-muted)',
-          opacity: disabled ? 0.6 : 1,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          fontSize: '0.9rem',
-          transition: 'border-color 0.15s, box-shadow 0.15s',
-        }}
-        onFocus={(e) => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px var(--primary-glow)'; }}
-        onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
-      >
-        {children}
-      </select>
-    </div>
-  );
-}
+const itemVariants = {
+  hidden: { y: 15, opacity: 0 },
+  visible: { y: 0, opacity: 1 }
+};
 
-/* ─── Subject Chip (checkbox-style button) ───────────────────────────────── */
-function SubjectChip({ subject, selected, disabled, onToggle, accentColor = 'var(--accent)' }) {
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onToggle(subject)}
-      disabled={disabled}
-      title={disabled && !selected ? `Already taken by another staff` : ''}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '0.5rem 0.9rem',
-        borderRadius: 10,
-        border: selected ? `1.5px solid ${accentColor}` : '1.5px solid var(--border)',
-        background: selected ? `${accentColor}18` : 'var(--bg-white)',
-        color: disabled && !selected ? 'var(--text-muted)' : selected ? accentColor : 'var(--text-dim)',
-        opacity: disabled && !selected ? 0.55 : 1,
-        cursor: disabled && !selected ? 'not-allowed' : 'pointer',
-        fontSize: '0.82rem',
-        fontWeight: selected ? 600 : 400,
-        transition: 'all 0.15s ease',
-        textAlign: 'left',
-      }}
-    >
-      <span style={{
-        width: 16, height: 16, borderRadius: 4, flexShrink: 0,
-        border: selected ? `2px solid ${accentColor}` : '2px solid var(--border)',
-        background: selected ? accentColor : 'transparent',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'all 0.15s',
-      }}>
-        {selected && (
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M1.5 5L4 7.5L8.5 2.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        )}
-      </span>
-      <span>
-        <strong>{subject.name}</strong>
-        <span style={{ fontSize: '0.72rem', marginLeft: 6, opacity: 0.7 }}>
-          ({subject.code}){subject.section ? ` - Sec ${subject.section}` : ''}
-        </span>
-        {disabled && !selected && <span style={{ marginLeft: 4 }}>🔒</span>}
-      </span>
-    </button>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════════════════════════════════════════ */
-export default function SubjectSelectionPage() {
+export default function PreferencesPage() {
   const { user } = useAuth();
-
-  /* ── Dropdown selections ── */
-  const [academicYear, setAcademicYear]     = useState('');
-  const [semesterType, setSemesterType]     = useState('');
-  const [semester,     setSemester]         = useState('');
-
-  /* ── Data lists ── */
-  const [academicYears, setAcademicYears]   = useState([]);
-  const [semesterList,  setSemesterList]    = useState([]);
-  const [theorySubjects, setTheorySubjects] = useState([]);
-  const [labSubjects,    setLabSubjects]    = useState([]);
-
-  /* ── Staff selections ── */
-  const [selectedTheory, setSelectedTheory] = useState([]);
-  const [selectedLab,    setSelectedLab]    = useState(null);
-
-  /* ── Taken by others ── */
-  const [takenKeys, setTakenKeys] = useState(new Set());
-
-  /* ── Loading flags ── */
-  const [loadingYears,    setLoadingYears]    = useState(true);
-  const [loadingSems,     setLoadingSems]     = useState(false);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-  const [saving,          setSaving]          = useState(false);
-
-  /* ── Existing preference (for update mode) ── */
+  const [form, setForm] = useState({
+    preferredTheorySubjects: [], 
+    preferredLabSubjects: [],   
+    additionalNotes: '',
+    academicYear: '2025-2026',
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [existing, setExisting] = useState(null);
+  const [curricula, setCurricula] = useState([]);
+  const [expandedSems, setExpandedSems] = useState([1, 2, 3, 4, 5, 6, 7, 8]); 
 
-  /* ── Step visibility ── */
-  const showSemType  = !!academicYear;
-  const showSemester = showSemType && !!semesterType;
-  const showSubjects = showSemester && !!semester && !loadingSubjects;
-
-  /* ─── 1. Fetch academic years on mount ───────────────────────────────── */
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await subjectAPI.getAcademicYears();
-        setAcademicYears(res.data.academicYears || []);
-      } catch {
-        toast.error('Failed to load academic years');
-      } finally {
-        setLoadingYears(false);
-      }
-    })();
-  }, []);
-
-  /* ─── 2. Load existing preference (pre-fill) ─────────────────────────── */
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await expectationAPI.getMyExpectation();
-        if (res.data.expectation) {
-          const exp = res.data.expectation;
-          setExisting(exp);
-          if (exp.academicYear) setAcademicYear(exp.academicYear);
-          if (exp.semesterType) setSemesterType(exp.semesterType);
-          if (exp.semester)     setSemester(String(exp.semester));
-          setSelectedTheory(exp.preferredTheorySubjects || []);
-          setSelectedLab(exp.preferredLabSubject || null);
-        }
-      } catch { /* silent */ }
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* ─── 3. Load semesters when semesterType changes ───────────────────── */
-  useEffect(() => {
-    if (!semesterType || !academicYear) { setSemesterList([]); return; }
-    setLoadingSems(true);
-    subjectAPI.getSemesters(academicYear, semesterType)
-      .then(res => setSemesterList(res.data.semesters || []))
-      .catch(() => toast.error('Failed to load semesters'))
-      .finally(() => setLoadingSems(false));
-  }, [semesterType, academicYear]);
-
-  /* ─── 4. Load subjects when semester (+ year + type) is selected ─────── */
-  const fetchSubjects = useCallback(async () => {
-    if (!semester || !semesterType || !academicYear) return;
-    setLoadingSubjects(true);
-    setTheorySubjects([]);
-    setLabSubjects([]);
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const [subjectsRes, takenRes] = await Promise.all([
-        subjectAPI.getSubjects(academicYear, semesterType, semester),
-        expectationAPI.getTaken(academicYear),
+      const [expRes, curRes] = await Promise.all([
+        expectationAPI.getMyExpectation(),
+        curriculumAPI.getAll(),
       ]);
       
-      console.log("Subjects Response:", subjectsRes.data);
-      
-      setTheorySubjects(subjectsRes.data.theorySubjects || []);
-      setLabSubjects(subjectsRes.data.labSubjects || []);
-
-      // Build a Set of taken subject codes (by other staff)
-      const takenSet = new Set();
-      (takenRes.data.taken || []).forEach(t => takenSet.add(t.subject));
-      setTakenKeys(takenSet);
-    } catch {
-      toast.error('Failed to load subjects');
+      if (expRes.data.expectation) {
+        const exp = expRes.data.expectation;
+        setExisting(exp);
+        setForm((f) => ({
+          ...f,
+          preferredTheorySubjects: exp.preferredTheorySubjects || [],
+          preferredLabSubjects: exp.preferredLabSubjects || [],
+          additionalNotes: exp.additionalNotes || '',
+          academicYear: exp.academicYear || '2025-2026',
+        }));
+      }
+      setCurricula(curRes.data.curricula || []);
+    } catch (error) {
+      console.error('Fetch error:', error);
+      toast.error('Initialization sequence failed. Re-mapping nodes...');
     } finally {
-      setLoadingSubjects(false);
+      setLoading(false);
     }
-  }, [semester, semesterType, academicYear]);
-
-  useEffect(() => { fetchSubjects(); }, [fetchSubjects]);
-
-  /* ─── Handlers ───────────────────────────────────────────────────────── */
-  const handleYearChange = (e) => {
-    setAcademicYear(e.target.value);
-    setSemesterType('');
-    setSemester('');
-    setSelectedTheory([]);
-    setSelectedLab(null);
-    setTheorySubjects([]);
-    setLabSubjects([]);
   };
 
-  const handleTypeChange = (e) => {
-    setSemesterType(e.target.value);
-    setSemester('');
-    setSelectedTheory([]);
-    setSelectedLab(null);
-    setTheorySubjects([]);
-    setLabSubjects([]);
-  };
+  useEffect(() => { fetchData(); }, [form.academicYear]);
 
-  const handleSemesterChange = (e) => {
-    setSemester(e.target.value);
-    setSelectedTheory([]);
-    setSelectedLab(null);
-  };
-
-  const toggleTheory = (subject) => {
-    setSelectedTheory(prev => {
-      const already = prev.find(s => 
-        (s.subject === subject.name || s.subject === subject.code) && 
-        s.section === subject.section
-      );
-      if (already) {
-        return prev.filter(s => 
-          !( (s.subject === subject.name || s.subject === subject.code) && s.section === subject.section )
-        );
-      }
-      if (prev.length >= 3) {
-        toast.error('Maximum 3 theory subjects allowed');
-        return prev;
-      }
-      return [...prev, {
-        subject: subject.name,
-        code: subject.code,
-        semester: Number(semester),
-        section: subject.section || 'A',
-      }];
-    });
-  };
-
-  const toggleLab = (subject) => {
-    setSelectedLab(prev =>
-      prev && prev.code === subject.code ? null : { name: subject.name, code: subject.code }
+  const toggleSemester = (sem) => {
+    setExpandedSems(prev => 
+      prev.includes(sem) ? prev.filter(s => s !== sem) : [...prev, sem]
     );
   };
 
+  const isTheorySelected = (subName, sem) => {
+    return form.preferredTheorySubjects.some(
+      s => s.subject === subName && Number(s.semester) === Number(sem)
+    );
+  };
+
+  const isLabSelected = (subName, sem) => {
+    return form.preferredLabSubjects.some(
+      s => s.subject === subName && Number(s.semester) === Number(sem)
+    );
+  };
+
+  const getValidationState = () => {
+    const sectionMap = {};
+    
+    form.preferredTheorySubjects.forEach(s => {
+      const key = `${s.semester}-${s.section}`;
+      if (!sectionMap[key]) sectionMap[key] = { theory: 0, lab: 0, sem: s.semester, sec: s.section };
+      sectionMap[key].theory++;
+    });
+    form.preferredLabSubjects.forEach(s => {
+      const key = `${s.semester}-${s.section}`;
+      if (!sectionMap[key]) sectionMap[key] = { theory: 0, lab: 0, sem: s.semester, sec: s.section };
+      sectionMap[key].lab++;
+    });
+
+    const sections = Object.keys(sectionMap).sort().map(key => ({
+      ...sectionMap[key],
+      isValid: sectionMap[key].theory >= 1 && sectionMap[key].lab >= 1 && 
+               sectionMap[key].theory <= 3 && sectionMap[key].lab <= 2
+    }));
+
+    const isAllValid = sections.length > 0 && sections.every(s => s.isValid);
+    return { sections, isAllValid };
+  };
+
+  const handleTheoryToggle = (subName, sem, totalSections) => {
+    const isSelected = isTheorySelected(subName, sem);
+    
+    setForm(f => {
+      if (isSelected) {
+        return {
+          ...f,
+          preferredTheorySubjects: f.preferredTheorySubjects.filter(
+            s => !(s.subject === subName && Number(s.semester) === Number(sem))
+          )
+        };
+      } else {
+        const currentSections = {};
+        f.preferredTheorySubjects.forEach(s => {
+          const key = `${s.semester}-${s.section}`;
+          currentSections[key] = (currentSections[key] || 0) + 1;
+        });
+
+        for (let i = 0; i < totalSections; i++) {
+          const sec = String.fromCharCode(65 + i);
+          const key = `${sem}-${sec}`;
+          if ((currentSections[key] || 0) >= 3) {
+            toast.error(`Constraint Violation: Section ${sec} already at max Theory capacity.`);
+            return f;
+          }
+        }
+
+        const newEntries = [];
+        for (let i = 0; i < totalSections; i++) {
+          newEntries.push({ subject: subName, semester: Number(sem), section: String.fromCharCode(65 + i) });
+        }
+        return {
+          ...f,
+          preferredTheorySubjects: [...f.preferredTheorySubjects, ...newEntries]
+        };
+      }
+    });
+  };
+
+  const handleLabToggle = (subName, sem, totalSections) => {
+    const isSelected = isLabSelected(subName, sem);
+    
+    setForm(f => {
+      if (isSelected) {
+        return {
+          ...f,
+          preferredLabSubjects: f.preferredLabSubjects.filter(
+            s => !(s.subject === subName && Number(s.semester) === Number(sem))
+          )
+        };
+      } else {
+        const currentSections = {};
+        f.preferredLabSubjects.forEach(s => {
+          const key = `${s.semester}-${s.section}`;
+          currentSections[key] = (currentSections[key] || 0) + 1;
+        });
+
+        for (let i = 0; i < totalSections; i++) {
+          const sec = String.fromCharCode(65 + i);
+          const key = `${sem}-${sec}`;
+          if ((currentSections[key] || 0) >= 2) {
+            toast.error(`Constraint Violation: Section ${sec} already at max Lab capacity.`);
+            return f;
+          }
+        }
+
+        const newEntries = [];
+        for (let i = 0; i < totalSections; i++) {
+          newEntries.push({ subject: subName, semester: Number(sem), section: String.fromCharCode(65 + i) });
+        }
+        return {
+          ...f,
+          preferredLabSubjects: [...f.preferredLabSubjects, ...newEntries]
+        };
+      }
+    });
+  };
+
   const handleSubmit = async () => {
-    if (!academicYear || !semesterType || !semester) {
-      toast.error('Please complete all dropdown selections');
+    const { isAllValid, sections } = getValidationState();
+    
+    if (sections.length === 0) {
+      toast.error('Initial selection required for matrix synchronization.');
       return;
     }
-    if (selectedTheory.length === 0) {
-      toast.error('Please select at least one theory subject');
+
+    if (!isAllValid) {
+      toast.error('Operational bounds unsatisfied. Each section requires 1-3 Theory and 1-2 Lab nodes.');
       return;
     }
+
     setSaving(true);
     try {
-      await expectationAPI.submit({
-        academicYear,
-        semesterType,
-        semester: Number(semester),
-        preferredTheorySubjects: selectedTheory,
-        preferredLabSubject: selectedLab ? selectedLab.name : null,
-      });
-      toast.success(existing ? 'Preferences updated!' : 'Preferences saved!');
-      setExisting({ academicYear, semesterType, semester: Number(semester) });
+      await expectationAPI.submit(form);
+      toast.success('Matrix synchronization complete.');
+      setExisting(form);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save preferences');
+      toast.error(err.response?.data?.message || 'Synchronization failed.');
     } finally {
       setSaving(false);
     }
   };
 
-  /* ─── Render ─────────────────────────────────────────────────────────── */
+  const val = getValidationState();
+
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+       <div className="relative w-12 h-12">
+          <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
+          <div className="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin" />
+       </div>
+       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Mapping Curricula Index...</p>
+    </div>
+  );
+
   return (
-    <div>
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Subject Selection</h1>
-          <p className="page-subtitle">
-            Choose subjects you'd like to teach — up to 3 theory and 1 lab
+    <div className="space-y-12 pb-20">
+      {/* Header Section */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div className="space-y-2">
+          <motion.div 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center gap-3"
+          >
+             <div className="w-1 h-8 bg-indigo-600 rounded-full" />
+             <h1 className="text-4xl font-bold text-slate-900 tracking-tight">
+                Subject <span className="text-indigo-600 font-medium">Preferences</span>
+             </h1>
+          </motion.div>
+          <p className="text-slate-500 font-medium text-sm ml-4">
+             Configure your teaching matrix. Mandatory bounds: 1-3 Theory and 1-2 Lab cycles.
           </p>
         </div>
-        {existing && (
-          <span
-            className="badge badge-staff"
-            style={{ fontSize: '0.75rem', padding: '0.35rem 0.85rem', alignSelf: 'flex-start' }}
-          >
-            ✓ Preferences Submitted
-          </span>
-        )}
+
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm"
+        >
+          <div className="px-6 py-2 bg-slate-50 rounded-xl border border-slate-100 flex flex-col items-center sm:items-start">
+            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-widest mb-0.5 leading-none">Active Cycle</span>
+            <span className="text-[11px] font-bold text-slate-700 tracking-widest uppercase">{form.academicYear}</span>
+          </div>
+          {existing && (
+            <div className="flex items-center gap-3 px-6 py-4 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-200 text-[10px] font-bold uppercase tracking-widest shadow-sm">
+              <ShieldCheck size={18} className="animate-pulse" />
+              Synchronized
+            </div>
+          )}
+        </motion.div>
       </div>
 
-      {existing && (
-        <div className="alert alert-success mb-2">
-          Your preferences are saved. Change any selection below and click <strong>Update</strong> to revise.
-        </div>
-      )}
+      <div className="flex flex-col xl:flex-row gap-10 items-start">
+        {/* Main Selection Area */}
+        <div className="flex-1 space-y-10 w-full">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="space-y-6"
+          >
+            {curricula.map((cur) => {
+              const semSections = val.sections.filter(s => s.sem === cur.semester);
+              const isSemUnbalanced = semSections.some(s => !s.isValid);
+              const isExpanded = expandedSems.includes(cur.semester);
 
-      <div
-        style={{
-          display: 'grid',
-          gap: '1.25rem',
-          gridTemplateColumns: 'minmax(0,1fr) 300px',
-          alignItems: 'start',
-        }}
-      >
-        {/* ── Left column ─────────────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-
-          {/* Step 1 → Academic Year */}
-          <div className="card">
-            <h3 className="card-title" style={{ marginBottom: '1rem' }}>
-              <span
-                style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  width: 24, height: 24, borderRadius: '50%',
-                  background: 'var(--primary)', color: '#fff',
-                  fontSize: '0.72rem', fontWeight: 700, marginRight: 8,
-                }}
-              >1</span>
-              Step 1 — Academic Year
-            </h3>
-
-            {loadingYears ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                <Spinner size={16} /> Loading academic years…
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem 1rem' }}>
-                <StyledSelect
-                  label="Academic Year"
-                  value={academicYear}
-                  onChange={handleYearChange}
+              return (
+                <motion.div 
+                  key={cur.semester}
+                  variants={itemVariants}
+                  className={`bg-white rounded-[2.5rem] border border-slate-200 shadow-sm transition-all duration-300 overflow-hidden ${isExpanded ? 'border-indigo-300 shadow-xl shadow-slate-200/50' : ''}`}
                 >
-                  <option value="">— Select Academic Year —</option>
-                  {academicYears.map(y => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </StyledSelect>
-              </div>
-            )}
-          </div>
-
-          {/* Step 2 → Semester Type */}
-          {showSemType && (
-            <div className="card" style={{ animation: 'fadeIn 0.2s ease' }}>
-              <h3 className="card-title" style={{ marginBottom: '1rem' }}>
-                <span
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: 'var(--accent)', color: '#fff',
-                    fontSize: '0.72rem', fontWeight: 700, marginRight: 8,
-                  }}
-                >2</span>
-                Step 2 — Semester Type
-              </h3>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                {['odd', 'even'].map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => handleTypeChange({ target: { value: type } })}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem 1rem',
-                      borderRadius: 10,
-                      border: semesterType === type ? '2px solid var(--primary)' : '2px solid var(--border)',
-                      background: semesterType === type ? 'var(--primary-glow)' : 'var(--bg-white)',
-                      color: semesterType === type ? 'var(--primary)' : 'var(--text-dim)',
-                      fontWeight: semesterType === type ? 700 : 400,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      fontSize: '0.9rem',
-                    }}
+                  <button 
+                    onClick={() => toggleSemester(cur.semester)}
+                    className={`w-full flex flex-col sm:flex-row items-center justify-between p-8 text-left transition-colors ${isExpanded ? 'bg-indigo-50/20' : 'hover:bg-slate-50'}`}
                   >
-                    {type === 'odd' ? '🌙 Odd Semester' : '☀️ Even Semester'}
-                    <div style={{ fontSize: '0.72rem', marginTop: 2, opacity: 0.7 }}>
-                      {type === 'odd' ? 'Sem 1, 3, 5, 7' : 'Sem 2, 4, 6, 8'}
+                    <div className="flex items-center gap-8 mb-6 sm:mb-0">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold text-2xl transition-all duration-300 border ${isExpanded ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-100' : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+                        {cur.semester}
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-none uppercase">{semToYear(cur.semester)} Year</h3>
+                        <div className="flex items-center gap-3 mt-1.5">
+                           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest leading-none">Phase {cur.semester}</p>
+                           {isSemUnbalanced && (
+                             <div className="flex items-center gap-2 px-2 py-0.5 bg-rose-50 border border-rose-100 rounded-lg">
+                               <AlertTriangle size={12} className="text-rose-500 animate-pulse" />
+                               <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest leading-none">Unsaturated</span>
+                             </div>
+                           )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <div className="flex -space-x-3">
+                         {Array.from({ length: cur.sections || 1 }).map((_, i) => {
+                           const sec = String.fromCharCode(65 + i);
+                           const isValid = semSections.find(s => s.sec === sec)?.isValid;
+                           return (
+                             <div key={i} title={`Section ${sec}`} className={`w-10 h-10 rounded-xl border-2 border-white text-[11px] font-bold flex items-center justify-center shadow-lg transition-all duration-500 ${isValid ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-300'}`}>
+                               {sec}
+                             </div>
+                           );
+                         })}
+                      </div>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border border-slate-200 bg-white transition-all duration-300 ${isExpanded ? 'rotate-180 border-indigo-500 text-indigo-600' : 'text-slate-300'}`}>
+                        <ChevronDown size={20} />
+                      </div>
                     </div>
                   </button>
-                ))}
+
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="border-t border-slate-100 overflow-hidden"
+                      >
+                        <div className="p-8 grid gap-4 grid-cols-1 md:grid-cols-2">
+                          {cur.subjects.map((sub) => {
+                            const isMaxReached = cur.sections > 0 && Array.from({ length: cur.sections }).every((_, i) => {
+                              const sec = String.fromCharCode(65 + i);
+                              const stats = val.sections.find(vs => vs.sem === cur.semester && vs.sec === sec);
+                              if (!stats) return false;
+                              if (sub.type === 'theory') return stats.theory >= 3 && !isTheorySelected(sub.name, cur.semester);
+                              return stats.lab >= 2 && !isLabSelected(sub.name, cur.semester);
+                            });
+
+                            const isSelected = sub.type === 'theory' 
+                              ? isTheorySelected(sub.name, cur.semester)
+                              : isLabSelected(sub.name, cur.semester);
+
+                            return (
+                              <motion.div 
+                                key={sub._id}
+                                onClick={() => !isMaxReached && (sub.type === 'theory' 
+                                  ? handleTheoryToggle(sub.name, cur.semester, cur.sections || 1)
+                                  : handleLabToggle(sub.name, cur.semester, cur.sections || 1)
+                                )}
+                                className={`group relative p-6 rounded-[2rem] border transition-all duration-300 cursor-pointer overflow-hidden ${isSelected ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-100' : 'bg-slate-50 border-slate-100 hover:border-indigo-200 hover:bg-white'} ${isMaxReached ? 'opacity-20 grayscale pointer-events-none' : ''}`}
+                              >
+                                <div className="flex flex-col h-full justify-between gap-6 relative z-10">
+                                  <div className="flex justify-between items-start gap-4">
+                                    <div className="space-y-3">
+                                      <div className={`text-[9px] uppercase font-bold tracking-widest flex items-center gap-2 leading-none transition-colors ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                        {sub.type === 'theory' ? <BookOpen size={14} /> : <FlaskConical size={14} />}
+                                        {sub.type}_NODE
+                                      </div>
+                                      <h4 className={`font-bold text-lg tracking-tight leading-none uppercase transition-colors ${isSelected ? 'text-white' : 'text-slate-900'}`}>{sub.name}</h4>
+                                      <div className={`flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors ${isSelected ? 'text-indigo-200' : 'text-slate-300'}`}>
+                                        <Zap size={12} className={isSelected ? 'text-white' : 'text-slate-300'} />
+                                        {sub.code}
+                                      </div>
+                                    </div>
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${isSelected ? 'bg-white text-indigo-600 border-white' : 'bg-white text-slate-200 border-slate-100 shadow-sm'}`}>
+                                      {isSelected ? <CheckCircle2 size={24} /> : <Plus size={20} />}
+                                    </div>
+                                  </div>
+
+                                  <div className={`flex items-center justify-between pt-4 border-t ${isSelected ? 'border-indigo-500/50' : 'border-slate-200/50'}`}>
+                                    <span className={`text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-indigo-100' : 'text-slate-400'}`}>
+                                      {cur.sections || 1} Units
+                                    </span>
+                                    {isMaxReached && !isSelected && (
+                                      <span className="text-[9px] font-bold uppercase text-rose-500 tracking-widest leading-none">Limit Met</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+
+          {/* Additional Notes */}
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-8">
+            <div className="flex items-center gap-5">
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-inner">
+                <FileText size={24} />
+              </div>
+              <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.3em] italic leading-none">Requirements Override</h3>
+            </div>
+            <textarea 
+              rows={4}
+              placeholder="Specify preferred session intervals or facility access..."
+              className="saas-input p-6 bg-slate-50 border-slate-200 rounded-3xl resize-none font-medium text-sm text-slate-900 placeholder:text-slate-300 focus:bg-white transition-all shadow-inner"
+              value={form.additionalNotes}
+              onChange={(e) => setForm(f => ({ ...f, additionalNotes: e.target.value }))}
+            />
+            <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <Compass size={16} className="text-indigo-400" />
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">軟约束: soft parameters for the generation engine.</p>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Workload Monitor Sidebar */}
+        <div className="w-full xl:w-[420px] sticky top-10">
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="bg-white flex flex-col gap-10 p-10 rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-200/50 h-[calc(100vh-120px)] overflow-hidden"
+          >
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                 <h3 className="text-3xl font-bold text-slate-900 tracking-tight leading-none uppercase">
+                   Grid <span className="text-indigo-600 font-medium">Monitor</span>
+                 </h3>
+                 <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-inner">
+                    <Monitor size={22} />
+                 </div>
+              </div>
+              <div className="flex items-center gap-3 bg-indigo-50 px-5 py-3 rounded-2xl border border-indigo-100">
+                 <Cpu size={18} className="text-indigo-600 animate-spin" />
+                 <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest leading-none">Real-time Topology Syncing</p>
               </div>
             </div>
-          )}
-
-          {/* Step 3 → Semester */}
-          {showSemester && (
-            <div className="card" style={{ animation: 'fadeIn 0.2s ease' }}>
-              <h3 className="card-title" style={{ marginBottom: '1rem' }}>
-                <span
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 24, height: 24, borderRadius: '50%',
-                    background: 'var(--accent)', color: '#fff',
-                    fontSize: '0.72rem', fontWeight: 700, marginRight: 8,
-                  }}
-                >3</span>
-                Step 3 — Semester
-                {loadingSems && <Spinner size={14} style={{ marginLeft: 8 }} />}
-              </h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {semesterList.map(sem => (
-                  <button
-                    key={sem}
-                    type="button"
-                    onClick={() => handleSemesterChange({ target: { value: String(sem) } })}
-                    style={{
-                      padding: '0.55rem 1.2rem',
-                      borderRadius: 8,
-                      border: semester === String(sem) ? '2px solid var(--primary)' : '2px solid var(--border)',
-                      background: semester === String(sem) ? 'var(--primary-glow)' : 'var(--bg-white)',
-                      color: semester === String(sem) ? 'var(--primary)' : 'var(--text-dim)',
-                      fontWeight: semester === String(sem) ? 700 : 400,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      fontSize: '0.88rem',
-                    }}
-                  >
-                    Sem {sem}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 4a → Theory Subjects */}
-          {showSemester && semester && (
-            <div className="card" style={{ animation: 'fadeIn 0.2s ease' }}>
-              <div className="flex-between mb-2">
-                <div>
-                  <h3 className="card-title">
-                    <span
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        width: 24, height: 24, borderRadius: '50%',
-                        background: 'var(--accent)', color: '#fff',
-                        fontSize: '0.72rem', fontWeight: 700, marginRight: 8,
-                      }}
-                    >4</span>
-                    Theory Subjects
-                  </h3>
-                  <p className="card-subtitle" style={{ marginLeft: 32 }}>
-                    Select up to <strong>3</strong> theory subjects
-                  </p>
-                </div>
-                <span
-                  style={{
-                    fontSize: '0.78rem', fontWeight: 600, padding: '0.2rem 0.65rem',
-                    borderRadius: 20,
-                    background: selectedTheory.length >= 3 ? 'rgba(239,68,68,0.12)' : 'var(--primary-glow)',
-                    color: selectedTheory.length >= 3 ? '#ef4444' : 'var(--primary)',
-                  }}
-                >
-                  {selectedTheory.length} / 3
-                </span>
-              </div>
-
-              {loadingSubjects ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)', padding: '0.5rem 0' }}>
-                  <Spinner size={18} /> Loading subjects…
-                </div>
-              ) : theorySubjects.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: 'center', padding: '2rem 1rem',
-                    color: 'var(--text-muted)', fontSize: '0.88rem',
-                    border: '1.5px dashed var(--border)', borderRadius: 10,
-                  }}
-                >
-                  📭 No theory subjects available for Semester {semester}
+            
+            <div className="flex-1 overflow-y-auto no-scrollbar space-y-6 pr-1">
+              {val.sections.length === 0 ? (
+                <div className="py-20 flex flex-col items-center text-center gap-8 opacity-40">
+                  <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 border border-slate-100 shadow-inner">
+                    <Box size={40} />
+                  </div>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed max-w-[180px]">Assign teaching nodes to initialize workload monitor.</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {theorySubjects.map(subj => {
-                    const isSelected = selectedTheory.some(s =>
-                      (s.subject === subj.name || s.subject === subj.code) && s.section === subj.section
-                    );
-                    const isTaken = takenKeys.has(subj.name) && !isSelected;
-                    return (
-                      <SubjectChip
-                        key={subj.code}
-                        subject={subj}
-                        selected={isSelected}
-                        disabled={isTaken || (!isSelected && selectedTheory.length >= 3)}
-                        onToggle={toggleTheory}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+                <div className="space-y-4">
+                  {val.sections.map(s => (
+                    <motion.div 
+                      key={`${s.sem}-${s.sec}`} 
+                      className={`p-6 rounded-3xl border transition-all duration-300 shadow-sm bg-white flex flex-col gap-6 ${s.isValid ? 'border-slate-100 group hover:border-indigo-300' : 'border-rose-100 bg-rose-50/20'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                           <div className={`w-1.5 h-6 rounded-full ${s.isValid ? 'bg-indigo-600' : 'bg-rose-500'}`} />
+                           <span className="font-bold text-base text-slate-900 uppercase">Phase_{s.sem} <span className="text-slate-300 mx-1">/</span> {s.sec}</span>
+                        </div>
+                        <div className={`px-3 py-1 rounded-xl text-[9px] font-bold uppercase tracking-widest border transition-all ${s.isValid ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-rose-50 text-rose-500 border-rose-100'}`}>
+                          {s.isValid ? 'Ready' : 'Bound Warning'}
+                        </div>
+                      </div>
 
-          {/* Step 4b → Lab Subject */}
-          {showSemester && semester && !loadingSubjects && (
-            <div className="card" style={{ animation: 'fadeIn 0.2s ease' }}>
-              <h3 className="card-title mb-2">
-                Lab Subject{' '}
-                <span className="text-muted text-sm" style={{ fontWeight: 400 }}>
-                  (Optional — select 1)
-                </span>
-              </h3>
-              {labSubjects.length === 0 ? (
-                <div
-                  style={{
-                    textAlign: 'center', padding: '1.5rem 1rem',
-                    color: 'var(--text-muted)', fontSize: '0.88rem',
-                    border: '1.5px dashed var(--border)', borderRadius: 10,
-                  }}
-                >
-                  📭 No lab subjects for Semester {semester}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  {labSubjects.map(subj => (
-                    <SubjectChip
-                      key={subj.code}
-                      subject={subj}
-                      selected={selectedLab?.code === subj.code}
-                      disabled={false}
-                      onToggle={toggleLab}
-                      accentColor="#8b5cf6"
-                    />
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className={`flex flex-col p-4 rounded-xl border transition-all ${s.theory >= 1 && s.theory <= 3 ? 'bg-white border-indigo-100' : 'bg-slate-50 border-slate-100 opacity-50'}`}>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 leading-none">Theory Nodes</span>
+                           <h5 className="text-3xl font-bold text-slate-900 leading-none">{s.theory}<span className="text-xs text-slate-300 ml-1">/ 3</span></h5>
+                        </div>
+                        <div className={`flex flex-col p-4 rounded-xl border transition-all ${s.lab >= 1 && s.lab <= 2 ? 'bg-white border-emerald-100' : 'bg-slate-50 border-slate-100 opacity-50'}`}>
+                           <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2 leading-none">Lab Nodes</span>
+                           <h5 className="text-3xl font-bold text-slate-900 leading-none">{s.lab}<span className="text-xs text-slate-300 ml-1">/ 2</span></h5>
+                        </div>
+                      </div>
+
+                      {!s.isValid && (
+                         <div className="flex items-center gap-2 text-rose-500">
+                            <AlertTriangle size={14} />
+                             <p className="text-[9px] font-bold uppercase tracking-widest">Saturation Conflict</p>
+                         </div>
+                      )}
+                    </motion.div>
                   ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {/* ── Right sidebar — summary ─────────────────────────── */}
-        <div className="card" style={{ position: 'sticky', top: 'calc(var(--navbar-h) + 1rem)' }}>
-          <h3 className="card-title mb-2">📋 Your Selection</h3>
-
-          {/* Filter summary */}
-          <div
-            style={{
-              background: '#f8fafc', borderRadius: 8,
-              padding: '0.65rem 0.85rem', marginBottom: '1rem',
-              fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 4,
-            }}
-          >
-            <div><span style={{ color: 'var(--text-muted)' }}>Year:</span> <strong>{academicYear || '–'}</strong></div>
-            <div>
-              <span style={{ color: 'var(--text-muted)' }}>Type:</span>{' '}
-              <strong style={{ textTransform: 'capitalize' }}>{semesterType || '–'}</strong>
-            </div>
-            <div><span style={{ color: 'var(--text-muted)' }}>Semester:</span> <strong>{semester ? `Semester ${semester}` : '–'}</strong></div>
-          </div>
-
-          {/* Theory list */}
-          <p
-            style={{
-              fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em',
-              color: 'var(--text-muted)', marginBottom: '0.4rem',
-            }}
-          >
-            Theory ({selectedTheory.length}/3)
-          </p>
-          {selectedTheory.length === 0 ? (
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-              None selected
-            </p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.75rem' }}>
-              {selectedTheory.map((s, i) => (
-                <div
-                  key={`${s.subject}-${i}`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6,
-                    fontSize: '0.82rem', padding: '0.3rem 0.5rem',
-                    background: 'var(--primary-glow)', borderRadius: 6,
-                    color: 'var(--primary)',
-                  }}
-                >
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', opacity: 0.7 }}>#{i + 1}</span>
-                  <span style={{ flex: 1 }}>{s.subject} {s.section ? `(Sec ${s.section})` : ''}</span>
-                  <button
-                    onClick={() => setSelectedTheory(p => p.filter((_, j) => j !== i))}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: 'var(--primary)', fontSize: '0.9rem', padding: 0, lineHeight: 1,
-                    }}
-                  >
-                    ×
-                  </button>
+            <div className="pt-8 border-t border-slate-100 space-y-8">
+              {!val.isAllValid && val.sections.length > 0 && (
+                <div className="flex flex-col gap-3 bg-rose-50 p-6 rounded-[2rem] border border-rose-100">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="text-rose-500" size={18} />
+                    <h4 className="text-[10px] font-bold text-rose-600 uppercase tracking-widest leading-none">Structural Exception</h4>
+                  </div>
+                  <p className="text-[10px] font-medium text-rose-400 leading-relaxed uppercase tracking-tight">
+                    Bound requirements (1-3 Theory & 1-2 Lab) must be satisfied for synchronization.
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Lab */}
-          <p
-            style={{
-              fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.06em',
-              color: 'var(--text-muted)', marginBottom: '0.4rem',
-            }}
-          >
-            Lab (optional)
-          </p>
-          {selectedLab ? (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                fontSize: '0.82rem', padding: '0.3rem 0.5rem',
-                background: 'rgba(139,92,246,0.1)', borderRadius: 6,
-                color: '#8b5cf6', marginBottom: '1rem',
-              }}
-            >
-              <span style={{ flex: 1 }}>{selectedLab.name}</span>
-              <button
-                onClick={() => setSelectedLab(null)}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#8b5cf6', fontSize: '0.9rem', padding: 0, lineHeight: 1,
-                }}
+              <button 
+                onClick={handleSubmit}
+                disabled={saving || !val.isAllValid || val.sections.length === 0}
+                className="premium-button w-full h-16 rounded-2xl font-bold text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-100 active:scale-95 transition-all disabled:opacity-30 disabled:shadow-none"
               >
-                ×
+                {saving ? (
+                  <Activity size={20} className="animate-spin" />
+                ) : (
+                  <Fingerprint size={20} />
+                )}
+                {saving ? 'Synchronizing...' : (existing ? 'Override Registry' : 'Establish Commit')}
               </button>
             </div>
-          ) : (
-            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-              None selected
-            </p>
-          )}
-
-          {/* Submit */}
-          <button
-            className="btn btn-primary btn-full"
-            onClick={handleSubmit}
-            disabled={saving || !showSubjects || selectedTheory.length === 0}
-            style={{ marginTop: '0.25rem' }}
-          >
-            {saving ? (
-              <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <Spinner size={16} /> Saving…
-              </span>
-            ) : existing ? '🔄 Update Preferences' : '✅ Submit Preferences'}
-          </button>
-
-          {selectedTheory.length === 0 && showSubjects && (
-            <p style={{ fontSize: '0.75rem', color: '#ef4444', textAlign: 'center', marginTop: '0.4rem' }}>
-              ⚠ Select at least 1 theory subject
-            </p>
-          )}
-
-          <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '0.5rem' }}>
-            You can update preferences anytime
-          </p>
+          </motion.div>
         </div>
       </div>
-
-      {/* Keyframe for fade-in */}
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        @keyframes spin   { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }
