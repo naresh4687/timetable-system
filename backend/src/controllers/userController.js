@@ -106,8 +106,8 @@ export const deleteUser = async (req, res, next) => {
  */
 export const getAllStaff = async (req, res, next) => {
   try {
-    const staff = await User.find({ role: 'staff', isActive: true })
-      .select('_id name subjects department handledSemesters')
+    const staff = await User.find({ role: 'staff' })
+      .select('_id name email role department handledSemesters category isActive')
       .sort({ name: 1 });
     res.json({ staff });
   } catch (error) {

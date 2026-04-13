@@ -31,7 +31,7 @@ const navConfig = {
     { label: 'Batches', icon: CalendarDays, to: '/batches' },
     { section: 'Allocation' },
     { label: 'Approved Logs', icon: CircleCheck, to: '/assignments' },
-    { label: 'Master Schedules', icon: CalendarDays, to: '/timetables' },
+    { label: 'Master Timetable', icon: CalendarDays, to: '/timetables' },
     { label: 'Staff Reqs', icon: ClipboardCheck, to: '/expectations' },
     { section: 'Identity' },
     { label: 'Terminal Profile', icon: CircleUser, to: '/profile' },

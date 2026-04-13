@@ -4,6 +4,7 @@ import { timetableAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatTimeTo12H } from '../utils/timeUtils';
 import { 
   ArrowLeft, 
   Download, 
@@ -235,7 +236,7 @@ export default function TimetableViewPage() {
                       <div className="space-y-1.5">
                         <div className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Phase {slot.period}</div>
                         <div className="flex items-center justify-center gap-2 text-[11px] font-bold text-indigo-600 tracking-tight">
-                           <Clock size={12} /> {slot.startTime} – {slot.endTime}
+                           <Clock size={12} /> {formatTimeTo12H(slot.startTime)} – {formatTimeTo12H(slot.endTime)}
                         </div>
                       </div>
                     </th>

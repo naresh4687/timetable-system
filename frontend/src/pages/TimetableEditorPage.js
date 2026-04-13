@@ -4,6 +4,7 @@ import { timetableAPI, userAPI, curriculumAPI, departmentAPI } from '../services
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatTimeTo12H } from '../utils/timeUtils';
 import { 
   ArrowLeft, 
   Save, 
@@ -358,7 +359,7 @@ function EditTimetableForm({ id }) {
                        <span className="text-[11px] font-bold text-slate-900 uppercase">Cycle {slot.period}</span>
                        <div className="text-[10px] font-bold text-slate-400 tracking-tight flex items-center justify-center gap-1.5">
                           <Clock size={12} className="text-indigo-400" />
-                          {slot.startTime} – {slot.endTime}
+                          {formatTimeTo12H(slot.startTime)} – {formatTimeTo12H(slot.endTime)}
                        </div>
                     </div>
                   </th>

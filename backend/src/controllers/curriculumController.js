@@ -192,16 +192,22 @@ function groupAndShuffleByPreference(candidates) {
 
 // ─── Find staff for a subject (category & preference aware) ──────────────────
 // Returns array of { staff, category, preference }
-function findStaffForSubject(subjectName, allStaff) {
+function findStaffForSubject(subject, allStaff) {
+    const { name: subjectName, code: subjectCode } = subject;
     const matches = [];
     for (const s of allStaff) {
         for (const sub of s.subjects) {
-            const subName = typeof sub === 'string' ? sub : sub.subjectId;
-            if (!subName) continue;
-            if (
-                subName.toLowerCase().includes(subjectName.toLowerCase()) ||
-                subjectName.toLowerCase().includes(subName.toLowerCase())
-            ) {
+            const subNameOrCode = typeof sub === 'string' ? sub : sub.subjectId;
+            if (!subNameOrCode) continue;
+
+            const normalizedStored = subNameOrCode.toLowerCase();
+            const normalizedName = subjectName.toLowerCase();
+            const normalizedCode = subjectCode ? subjectCode.toLowerCase() : '';
+
+            const isNameMatch = normalizedStored.includes(normalizedName) || normalizedName.includes(normalizedStored);
+            const isCodeMatch = normalizedCode && (normalizedStored === normalizedCode);
+
+            if (isNameMatch || isCodeMatch) {
                 matches.push({ 
                     staff: s, 
                     category: s.category || 'B',
@@ -365,7 +371,7 @@ function allocateTheoryCSP(
     // ──────────────────────────────────────────────────────────────────────────────
     const subjectStaffMap = new Map(); // subjectName → [{ staff, category, preference }]
     for (const theory of theorySubjects) {
-        const raw = findStaffForSubject(theory.name, allStaff);
+        const raw = findStaffForSubject(theory, allStaff);
         // Use preference-aware shuffling for theory subjects
         subjectStaffMap.set(theory.name, groupAndShuffleByPreference(raw));
     }
@@ -763,12 +769,28 @@ function generateSchedule(subjects, allStaff, globalStaffBookings, globalRoomBoo
 
     for (const sub of subjects) {
         // findStaffForSubject returns [{ staff, preference }] already sorted asc
-        const candidates = findStaffForSubject(sub.name, allStaff);
+        const candidates = findStaffForSubject(sub, allStaff);
         if (sub.type === 'lab') {
-            const blocksNeeded = Math.max(1, Math.floor(sub.hoursPerWeek / LAB_BLOCK));
-            labSubjects.push({ name: sub.name, code: sub.code, blocksNeeded, candidates });
+            // Institutional rule: Major labs are 4 periods (LAB_BLOCK). 
+            // Minor sessions (1-2 hours) take only their actual hours to save slots.
+            const currentBlockSize = sub.hoursPerWeek < LAB_BLOCK ? sub.hoursPerWeek : LAB_BLOCK;
+            const blocksNeeded = Math.max(1, Math.floor(sub.hoursPerWeek / currentBlockSize));
+            
+            labSubjects.push({ 
+                name: sub.name, 
+                code: sub.code, 
+                hours: sub.hoursPerWeek,
+                blockSize: currentBlockSize,
+                blocksNeeded, 
+                candidates 
+            });
         } else {
-            theorySubjects.push({ name: sub.name, code: sub.code, hoursNeeded: sub.hoursPerWeek, candidates });
+            theorySubjects.push({ 
+                name: sub.name, 
+                code: sub.code, 
+                hoursNeeded: sub.hoursPerWeek, 
+                candidates 
+            });
         }
     }
 
@@ -805,10 +827,14 @@ function generateSchedule(subjects, allStaff, globalStaffBookings, globalRoomBoo
             for (const dayName of leastBusyDaysOrder()) {
                 const daySlots = grid[dayName];
 
-                for (const startIdx of shuffle([0, 1, 2, 3])) {
-                    const blockIdx = Array.from({ length: LAB_BLOCK }, (_, i) => startIdx + i);
+                // Iterate over start indices that can accommodate the dynamic blockSize
+                const maxStart = PERIODS.length - lab.blockSize;
+                const availableStartIndices = Array.from({ length: maxStart + 1 }, (_, i) => i);
 
-                    // All 4 slots must be free
+                for (const startIdx of shuffle(availableStartIndices)) {
+                    const blockIdx = Array.from({ length: lab.blockSize }, (_, i) => startIdx + i);
+
+                    // All required slots must be free
                     if (blockIdx.some(i => daySlots[i].type !== 'free')) continue;
 
                     // ── ATTEMPT 1: Pair matching with priority logic ──────
@@ -862,11 +888,11 @@ function generateSchedule(subjects, allStaff, globalStaffBookings, globalRoomBoo
                             bookStaff(s2Id, dayName, idx, globalStaffBookings);
                             bookRoom(availableRoom, dayName, idx, globalRoomBookings);
                         }
-                        globalStaffHours[s1Id] = s1Hours + LAB_BLOCK;
-                        globalStaffHours[s2Id] = s2Hours + LAB_BLOCK;
+                        globalStaffHours[s1Id] = s1Hours + lab.blockSize;
+                        globalStaffHours[s2Id] = s2Hours + lab.blockSize;
                         dayLabCount[dayName]++;
                         blockAssigned = true;
-                        console.log(`[Lab] ✔ "${lab.name}" block ${block+1} → ${dayName} | ${s1.name} + ${s2.name} (${categoryUsed})`);
+                        console.log(`[Lab] ✔ "${lab.name}" block ${block+1} (${lab.blockSize}hrs) → ${dayName} | ${s1.name} + ${s2.name} (${categoryUsed})`);
                         break pairSearch;
                     }
 
@@ -901,11 +927,11 @@ function generateSchedule(subjects, allStaff, globalStaffBookings, globalRoomBoo
                                 bookStaff(fsId, dayName, idx, globalStaffBookings);
                                 bookRoom(availableRoom, dayName, idx, globalRoomBookings);
                             }
-                            globalStaffHours[fsId] = fsHours + LAB_BLOCK;
+                            globalStaffHours[fsId] = fsHours + lab.blockSize;
                             dayLabCount[dayName]++;
                             blockAssigned = true;
                             console.warn(
-                                `[Lab] ⚠ "${lab.name}" block ${block+1}: no valid pair found` +
+                                `[Lab] ⚠ "${lab.name}" block ${block+1} (${lab.blockSize}hrs): no valid pair found` +
                                 ` — single staff "${fs.name}", staff2='TBD'`
                             );
                             break dayLoop;
@@ -934,7 +960,7 @@ function generateSchedule(subjects, allStaff, globalStaffBookings, globalRoomBoo
                         dayLabCount[dayName]++;
                         blockAssigned = true;
                         console.warn(
-                            `[Lab] ✖ "${lab.name}" block ${block+1}: zero staff matched — staff1=TBD, staff2=TBD`
+                            `[Lab] ✖ "${lab.name}" block ${block+1} (${lab.blockSize}hrs): zero staff matched — staff1=TBD, staff2=TBD`
                         );
                         break dayLoop;
                     }

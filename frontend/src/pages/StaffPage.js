@@ -68,10 +68,10 @@ export default function StaffPage() {
     setLoading(true);
     try {
       const [staffRes, depsRes] = await Promise.all([
-        userAPI.getAll({ role: 'staff' }),
+        userAPI.getStaff(),
         departmentAPI.getAll()
       ]);
-      setStaff(staffRes.data.users);
+      setStaff(staffRes.data.staff);
       setDepartments(depsRes.data);
     } catch (err) {
       toast.error('Directory synchronization failed');

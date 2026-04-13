@@ -1,6 +1,7 @@
 import TimeTable from '../models/TimeTable.js';
 import Constraint from '../models/Constraint.js';
 import { checkConstraints } from '../utils/constraintUtils.js';
+import { formatTimeTo12H } from '../utils/timeUtils.js';
 
 /**
  * Validates no staff double-booking, no classroom conflicts, and no constraint violations
@@ -320,7 +321,7 @@ export const downloadTimetablePDF = async (req, res, next) => {
       // Period Number
       doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(10).text(`P${slot.period}`, x, currentY + 14, { width: colWidth, align: 'center' });
       // Time Range
-      doc.fillColor('#FFFFFF').font('Helvetica-Oblique').fontSize(7).text(`${slot.startTime} - ${slot.endTime}`, x, currentY + 28, { width: colWidth, align: 'center', opacity: 0.6 });
+      doc.fillColor('#FFFFFF').font('Helvetica-Oblique').fontSize(7).text(`${formatTimeTo12H(slot.startTime)} - ${formatTimeTo12H(slot.endTime)}`, x, currentY + 28, { width: colWidth, align: 'center', opacity: 0.6 });
       
       // Vertical separator line in header
       if (i > 0) {
